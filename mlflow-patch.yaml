@@ -1,0 +1,17 @@
+﻿properties:
+  template:
+    containers:
+    - name: edf-mlflow
+      image: ghcr.io/mlflow/mlflow:v2.13.2
+      command:
+      - "mlflow"
+      args:
+      - "server"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "5000"
+      - "--backend-store-uri"
+      - "postgresql+psycopg2://edfadmin:T012HFDo1zzoOKpKQ20XaGn9TYfaHMxb@mspr3-postgres.postgres.database.azure.com/mlflowdb"
+      - "--default-artifact-root"
+      - "wasbs://mlflow-artifacts@mspr3storage.blob.core.windows.net/"
