@@ -1,0 +1,54 @@
+# Secrets & config locaux
+.env
+*.env.local
+
+# Données brutes
+data/*.xls
+data/*.xlsx
+data/*.csv
+
+# Modèles entraînés
+models/*.joblib
+models/*.pkl
+models/*.metrics.json
+
+# Artifacts MLflow / pipeline
+artifacts/
+mlruns/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+junit.xml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Logs
+*.log
+logs/
