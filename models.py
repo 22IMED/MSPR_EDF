@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.linear_model import Ridge
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -22,7 +22,7 @@ except ImportError:
     _XGBOOST_AVAILABLE = False
     logging.warning("XGBoost non disponible — le modèle XGBRegressor sera ignoré.")
 
-from preprocessing.constants import FEATURE_COLS, MAPE_PRODUCTION_THRESHOLD, R2_THRESHOLD
+from preprocessing.constants import R2_THRESHOLD
 
 logger = logging.getLogger(__name__)
 

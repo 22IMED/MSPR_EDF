@@ -3,7 +3,6 @@
 import logging
 from pathlib import Path
 
-import pandas as pd
 
 from preprocessing.extract import extract
 from preprocessing.load import load

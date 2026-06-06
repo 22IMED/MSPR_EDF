@@ -3,7 +3,6 @@
 import logging
 import math
 
-import numpy as np
 import pandas as pd
 
 from preprocessing.constants import FEATURE_COLS, JOURS_FERIES_FR, SAISON_MAP

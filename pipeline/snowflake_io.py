@@ -159,7 +159,7 @@ def write_predictions_to_snowflake(df: pd.DataFrame) -> int:
     cursor = conn.cursor()
     try:
         # Staging temporaire
-        cursor.execute(f"""
+        cursor.execute("""
             CREATE TEMPORARY TABLE IF NOT EXISTS tmp_predictions (
                 prediction_date     DATE,
                 prediction_mw       FLOAT,

@@ -1,5 +1,6 @@
 # scan_env.py
-import re, os
+import re
+import os
 
 patterns = [
     r'os\.environ\.get\(["\'](\w+)',

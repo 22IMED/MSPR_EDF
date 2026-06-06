@@ -1,12 +1,14 @@
 
 from dotenv import load_dotenv
-load_dotenv()
 
 from pathlib import Path
 from preprocessing.pipline import run_full_pipeline
-from models import train_all, evaluate_all, select_best_model, save_model_if_better
+from models import train_all, evaluate_all, select_best_model
 import mlflow
 import os
+import joblib
+
+load_dotenv()
 
 MODELS_DIR = Path(os.getenv('MODELS_DIR', 'models'))
 MODELS_DIR.mkdir(exist_ok=True)
@@ -32,7 +34,6 @@ print(f'Meilleur modele : {best}')
 print(results)
 
 # 4. Sauvegarde
-import joblib
 for name, info in trained.items():
     joblib.dump(info['pipeline'], MODELS_DIR / f'{name}.joblib')
     print(f'Modele sauvegarde : {name}.joblib')

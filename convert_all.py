@@ -13,12 +13,12 @@ for filename in os.listdir(data_dir):
         try:
             # Essai 1 : lire comme CSV avec separateur ;
             df = pd.read_csv(xls_path, sep=';', encoding='latin-1')
-            print(f'  -> Lu comme CSV (;)')
-        except Exception as e1:
+            print('  -> Lu comme CSV (;)')
+        except Exception:
             try:
                 # Essai 2 : separateur tabulation
                 df = pd.read_csv(xls_path, sep='\t', encoding='latin-1')
-                print(f'  -> Lu comme CSV (tabulation)')
+                print('  -> Lu comme CSV (tabulation)')
             except Exception as e2:
                 print(f'  ERREUR : {e2}')
                 continue

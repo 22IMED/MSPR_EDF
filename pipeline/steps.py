@@ -15,33 +15,12 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 
 
-# ─── Logging ─────────────────────────────────────────────────────────────────
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-logger = logging.getLogger(__name__)
-
-load_dotenv()
-
-# ─── Configuration ────────────────────────────────────────────────────────────
-_DATA_SOURCE = os.getenv("DATA_SOURCE", "xls")
-_DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
-_MODELS_DIR = Path(os.getenv("MODELS_DIR", "models"))
-_MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
-_MLFLOW_EXPERIMENT = os.getenv("MLFLOW_EXPERIMENT", "edf-consumption")
-_MAPE_PROD_THRESHOLD = float(os.getenv("MAPE_PRODUCTION_THRESHOLD", "5.0"))
-_R2_THRESHOLD = float(os.getenv("R2_THRESHOLD", "0.85"))
-
 # ─── Imports internes ─────────────────────────────────────────────────────────
 from models import (
-    benchmark_rte,
     evaluate_all,
     save_model_if_better,
     select_best_model,
@@ -57,11 +36,33 @@ from pipeline.artifacts import (
     save_splits,
 )
 from pipeline.snowflake_io import SnowflakeUnavailableError, load_from_snowflake, write_predictions_to_snowflake
-from preprocessing.constants import FEATURE_COLS, TARGET_COL
+from preprocessing.constants import FEATURE_COLS
 from preprocessing.extract import extract
 from preprocessing.load import load
 from preprocessing.transform import aggregate_daily, clean, engineer_features
 
+
+# ─── Logging ─────────────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
+
+
+# ─── Configuration ────────────────────────────────────────────────────────────
+_DATA_SOURCE = os.getenv("DATA_SOURCE", "xls")
+_DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
+_MODELS_DIR = Path(os.getenv("MODELS_DIR", "models"))
+_MLFLOW_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+_MLFLOW_EXPERIMENT = os.getenv("MLFLOW_EXPERIMENT", "edf-consumption")
+_MAPE_PROD_THRESHOLD = float(os.getenv("MAPE_PRODUCTION_THRESHOLD", "5.0"))
+_R2_THRESHOLD = float(os.getenv("R2_THRESHOLD", "0.85"))
+
+
+load_dotenv()
 
 # ─── Helpers MLflow run ID ────────────────────────────────────────────────────
 
@@ -292,10 +293,10 @@ def run_train(run_id: str | None = None) -> None:
         logger.info(f"MLflow run_id : {mlflow_run_id}")
 
     # Sauvegarde locale des modèles entraînés (pour étape 7)
-    trained_meta = {
-        name: {"train_time_s": info["train_time_s"]}
-        for name, info in trained.items()
-    }
+    # trained_meta = {
+    #     name: {"train_time_s": info["train_time_s"]}
+    #     for name, info in trained.items()
+    # }
     import joblib
     _MODELS_DIR.mkdir(parents=True, exist_ok=True)
     for name, info in trained.items():
@@ -448,7 +449,7 @@ def run_register_model(run_id: str | None = None) -> None:
     }
 
     # Sauvegarde locale
-    final_path = save_model_if_better(
+    save_model_if_better(
         pipeline, best_model_name, metrics_dict, str(_MODELS_DIR)
     )
 
