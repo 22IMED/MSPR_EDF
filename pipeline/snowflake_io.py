@@ -144,7 +144,7 @@ def write_predictions_to_snowflake(df: pd.DataFrame) -> int:
     conn = _get_connection()
 
     # Ajout predicted_at
-    now_utc = datetime.now(timezone.utc).isoformat()
+    now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     df = df.copy()
     df["predicted_at"] = now_utc
 
