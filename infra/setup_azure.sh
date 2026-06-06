@@ -17,18 +17,18 @@ err()  { echo -e "${RED}✗ $1${NC}" >&2; exit 1; }
 
 # ─── Variables ─────────────────────────────────────────────────────────────
 LOCATION="${LOCATION:-francecentral}"
-RG_NAME="rg-edf-mspr3"
-ACR_NAME="edfmspr3acr"
-STORAGE_NAME="edfmspr3storage"
-PG_NAME="edf-mlflow-pg"
 PG_DB="mlflowdb"
 PG_ADMIN="${PG_ADMIN:-edfadmin}"
 PG_PASSWORD="${PG_PASSWORD:-$(openssl rand -base64 24)}"
-ACA_ENV="env-edf-mspr3"
 MLFLOW_APP="edf-mlflow"
 API_APP="edf-api"
 PIPELINE_JOB="edf-pipeline-job"
 SP_NAME="sp-edf-mspr3-github"
+RG_NAME="mspr3-edf"
+ACR_NAME="mspr3registry"
+ACA_ENV="mspr3-env"
+STORAGE_NAME="mspr3storage"
+PG_NAME="mspr3-postgres"
 
 MLFLOW_IMAGE="ghcr.io/mlflow/mlflow:v2.13.2"
 API_IMAGE="${ACR_NAME}.azurecr.io/edf-api:latest"
@@ -43,21 +43,21 @@ echo -e "${NC}"
 
 # ─── 1. Resource Group ──────────────────────────────────────────────────────
 info "1/9 — Création du Resource Group : ${RG_NAME}"
-az group create \
-    --name "${RG_NAME}" \
-    --location "${LOCATION}" \
-    --output none
+# az group create \
+#     --name "${RG_NAME}" \
+#     --location "${LOCATION}" \
+#     --output none
 ok "Resource Group créé : ${RG_NAME} (${LOCATION})"
 
 # ─── 2. Azure Container Registry ────────────────────────────────────────────
 info "2/9 — Création Azure Container Registry : ${ACR_NAME}"
-az acr create \
-    --resource-group "${RG_NAME}" \
-    --name "${ACR_NAME}" \
-    --sku Basic \
-    --admin-enabled true \
-    --location "${LOCATION}" \
-    --output none
+# az acr create \
+#     --resource-group "${RG_NAME}" \
+#     --name "${ACR_NAME}" \
+#     --sku Basic \
+#     --admin-enabled true \
+#     --location "${LOCATION}" \
+#     --output none
 ok "ACR créé : ${ACR_NAME}.azurecr.io"
 
 ACR_USERNAME=$(az acr credential show --name "${ACR_NAME}" --query "username" -o tsv)
@@ -65,14 +65,8 @@ ACR_PASSWORD=$(az acr credential show --name "${ACR_NAME}" --query "passwords[0]
 ACR_LOGIN_SERVER="${ACR_NAME}.azurecr.io"
 
 # ─── 3. Storage Account ─────────────────────────────────────────────────────
-info "3/9 — Création du Storage Account : ${STORAGE_NAME}"
-az storage account create \
-    --resource-group "${RG_NAME}" \
-    --name "${STORAGE_NAME}" \
-    --location "${LOCATION}" \
-    --sku Standard_LRS \
-    --kind StorageV2 \
-    --output none
+# ─── 3. Storage Account ─────────────────────────────────────────────────────
+info "3/9 — Réutilisation Storage Account : ${STORAGE_NAME}"
 
 STORAGE_KEY=$(az storage account keys list \
     --resource-group "${RG_NAME}" \
@@ -84,61 +78,49 @@ STORAGE_CONN=$(az storage account show-connection-string \
     --name "${STORAGE_NAME}" \
     --query "connectionString" -o tsv)
 
-# Création des containers blob
+# Création des containers blob si inexistants
 for container in mlflow-artifacts eco2mix-data models; do
     az storage container create \
         --name "${container}" \
         --account-name "${STORAGE_NAME}" \
         --account-key "${STORAGE_KEY}" \
-        --output none
-    ok "  Container blob créé : ${container}"
+        --output none 2>/dev/null || true
+    ok "  Container blob : ${container}"
 done
-ok "Storage Account créé : ${STORAGE_NAME}"
+ok "Storage Account réutilisé : ${STORAGE_NAME}"
 
 # ─── 4. PostgreSQL Flexible Server ──────────────────────────────────────────
-info "4/9 — Création PostgreSQL Flexible Server : ${PG_NAME}"
-az postgres flexible-server create \
-    --resource-group "${RG_NAME}" \
-    --name "${PG_NAME}" \
-    --location "${LOCATION}" \
-    --admin-user "${PG_ADMIN}" \
-    --admin-password "${PG_PASSWORD}" \
-    --sku-name Standard_B1ms \
-    --tier Burstable \
-    --version 15 \
-    --storage-size 32 \
-    --yes \
-    --output none
-
+# ─── 4. PostgreSQL Flexible Server ──────────────────────────────────────────
+info "4/9 — Réutilisation PostgreSQL : ${PG_NAME}"
 az postgres flexible-server db create \
     --resource-group "${RG_NAME}" \
     --server-name "${PG_NAME}" \
     --database-name "${PG_DB}" \
-    --output none
+    --output none 2>/dev/null || warn "Base ${PG_DB} existe déjà."
 
-# Règle firewall pour Azure services
 az postgres flexible-server firewall-rule create \
     --resource-group "${RG_NAME}" \
-    --name "${PG_NAME}" \
+    --server-name "${PG_NAME}" \
     --rule-name AllowAzureServices \
     --start-ip-address 0.0.0.0 \
     --end-ip-address 0.0.0.0 \
-    --output none
+    --output none 2>/dev/null || warn "Règle firewall existe déjà."
 
 PG_FQDN="${PG_NAME}.postgres.database.azure.com"
 MLFLOW_DB_URI="postgresql+psycopg2://${PG_ADMIN}:${PG_PASSWORD}@${PG_FQDN}/${PG_DB}"
 MLFLOW_ARTIFACT_ROOT="wasbs://mlflow-artifacts@${STORAGE_NAME}.blob.core.windows.net/"
-ok "PostgreSQL créé : ${PG_FQDN}"
+ok "PostgreSQL réutilisé : ${PG_FQDN}"
 
 # ─── 5. Container Apps Environment ──────────────────────────────────────────
 info "5/9 — Création Container Apps Environment : ${ACA_ENV}"
-az containerapp env create \
-    --resource-group "${RG_NAME}" \
-    --name "${ACA_ENV}" \
-    --location "${LOCATION}" \
-    --output none
+# az containerapp env create \
+#     --resource-group "${RG_NAME}" \
+#     --name "${ACA_ENV}" \
+#     --location "${LOCATION}" \
+#     --output none
 ok "Container Apps Environment créé : ${ACA_ENV}"
 
+# ─── 6. Container App edf-mlflow (interne) ──────────────────────────────────
 # ─── 6. Container App edf-mlflow (interne) ──────────────────────────────────
 info "6/9 — Création Container App : ${MLFLOW_APP} (interne)"
 az containerapp create \
@@ -146,10 +128,6 @@ az containerapp create \
     --name "${MLFLOW_APP}" \
     --environment "${ACA_ENV}" \
     --image "${MLFLOW_IMAGE}" \
-    --command "mlflow" \
-    --args "server" "--host" "0.0.0.0" "--port" "5000" \
-      "--backend-store-uri" "${MLFLOW_DB_URI}" \
-      "--default-artifact-root" "${MLFLOW_ARTIFACT_ROOT}" \
     --cpu 0.5 \
     --memory 1Gi \
     --min-replicas 1 \
@@ -159,9 +137,13 @@ az containerapp create \
     --env-vars \
       "BACKEND_STORE_URI=${MLFLOW_DB_URI}" \
       "DEFAULT_ARTIFACT_ROOT=${MLFLOW_ARTIFACT_ROOT}" \
-    --output none
+      "MLFLOW_BACKEND_STORE_URI=${MLFLOW_DB_URI}" \
+      "MLFLOW_DEFAULT_ARTIFACT_ROOT=${MLFLOW_ARTIFACT_ROOT}" \
+    --command "mlflow,server,--host,0.0.0.0,--port,5000,--backend-store-uri,${MLFLOW_DB_URI},--default-artifact-root,${MLFLOW_ARTIFACT_ROOT}" \
+    --output none 2>/dev/null || warn "Container App ${MLFLOW_APP} existe déjà."
 ok "Container App créée : ${MLFLOW_APP} (interne)"
 
+# ─── 7. Container App edf-api (externe) ─────────────────────────────────────
 # ─── 7. Container App edf-api (externe) ─────────────────────────────────────
 info "7/9 — Création Container App : ${API_APP} (externe)"
 az containerapp create \
@@ -180,18 +162,18 @@ az containerapp create \
     --registry-password "${ACR_PASSWORD}" \
     --env-vars \
       "MODELS_DIR=/app/models" \
-      "DEFAULT_MODEL=random_forest" \
+      "DEFAULT_MODEL=ridge" \
       "MLFLOW_TRACKING_URI=http://${MLFLOW_APP}" \
       "MLFLOW_EXPERIMENT=edf-consumption" \
       "DATA_SOURCE=snowflake" \
       "USE_AZURE_STORAGE=true" \
       "AZURE_STORAGE_ACCOUNT=${STORAGE_NAME}" \
-    --output none
+    --output none 2>/dev/null || warn "Container App ${API_APP} existe déjà."
 
 API_FQDN=$(az containerapp show \
     --name "${API_APP}" \
     --resource-group "${RG_NAME}" \
-    --query "properties.configuration.ingress.fqdn" -o tsv)
+    --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || echo "N/A")
 ok "Container App créée : ${API_APP} → https://${API_FQDN}"
 
 # ─── 8. Container App Job edf-pipeline-job ───────────────────────────────────
@@ -203,6 +185,7 @@ az containerapp job create \
     --image "${PIPELINE_IMAGE}" \
     --trigger-type Manual \
     --replica-timeout 3600 \
+    --replica-retry-limit 1 \
     --cpu 1.0 \
     --memory 2Gi \
     --registry-server "${ACR_LOGIN_SERVER}" \
@@ -215,7 +198,7 @@ az containerapp job create \
       "USE_AZURE_STORAGE=true" \
       "AZURE_STORAGE_ACCOUNT=${STORAGE_NAME}" \
       "AZURE_STORAGE_KEY=${STORAGE_KEY}" \
-    --output none
+    --output none 2>/dev/null || warn "Job ${PIPELINE_JOB} existe déjà."
 ok "Container App Job créé : ${PIPELINE_JOB} (déclenchement manuel)"
 
 # ─── 9. Service Principal GitHub Actions ─────────────────────────────────────
