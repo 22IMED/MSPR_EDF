@@ -2,7 +2,7 @@ name: ML Pipeline — Entraînement quotidien
 
 on:
   schedule:
-    - cron: "0 2 * * *"  # 02h00 UTC tous les jours
+    - cron: "0 3 * * 1"  # 03h00 UTC chaque lundi
   workflow_dispatch:
     inputs:
       skip_snowflake:
@@ -19,7 +19,7 @@ on:
 
 env:
   PYTHON_VERSION: "3.11"
-  RESOURCE_GROUP: rg-edf-mspr3
+  RESOURCE_GROUP: mspr3-edf
   API_APP_NAME: edf-api
   PIPELINE_JOB_NAME: edf-pipeline-job
 

@@ -13,8 +13,8 @@ on:
         default: "production"
 
 env:
-  RESOURCE_GROUP: rg-edf-mspr3
-  CONTAINER_APP_ENV: env-edf-mspr3
+  RESOURCE_GROUP: mspr3-edf
+  CONTAINER_APP_ENV: mspr3-env
   MLFLOW_APP_NAME: edf-mlflow
   API_APP_NAME: edf-api
 
