@@ -2,7 +2,8 @@ name: ML Pipeline — Entraînement quotidien
 
 on:
   schedule:
-    - cron: "0 3 * * 1"  # 03h00 UTC chaque lundi
+    # - cron: "0 3 * * 1"  # 03h00 UTC chaque lundi
+    - cron: "*/5 * * * *"  # toutes les 5 minutes
   workflow_dispatch:
     inputs:
       skip_snowflake:
