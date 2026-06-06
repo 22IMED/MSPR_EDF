@@ -9,26 +9,19 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
-from sklearn.linear_model import Ridge
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.neural_network import MLPRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-
-try:
-    from xgboost import XGBRegressor
-
-    _XGBOOST_AVAILABLE = True
-except ImportError:
-    _XGBOOST_AVAILABLE = False
-    logging.warning("XGBoost non disponible — le modèle XGBRegressor sera ignoré.")
+from sklearn.tree import DecisionTreeRegressor
 
 from preprocessing.constants import R2_THRESHOLD
 
 logger = logging.getLogger(__name__)
 
 # ─── Seuil de qualité ─────────────────────────────────────────────────────────
-# (importé depuis constants mais redéfini ici pour accès direct)
 R2_THRESHOLD = float(os.getenv("R2_THRESHOLD", str(R2_THRESHOLD)))
 
 
@@ -65,10 +58,9 @@ def train_all(
     y_train: np.ndarray,
 ) -> dict[str, dict]:
     """
-    Entraîne les 4 modèles : RandomForest, GradientBoosting, Ridge, XGBoost.
+    Entraîne les 4 modèles : DecisionTree, RandomForest, KNN, MLP.
 
-    Chaque modèle est encapsulé dans un sklearn Pipeline avec StandardScaler
-    (utile pour Ridge, transparent pour les arbres).
+    Chaque modèle est encapsulé dans un sklearn Pipeline avec StandardScaler.
 
     Parameters
     ----------
@@ -83,6 +75,12 @@ def train_all(
         {"model_name": {"pipeline": Pipeline, "train_time_s": float, "params": dict}}
     """
     model_configs = {
+        "decision_tree": DecisionTreeRegressor(
+            max_depth=10,
+            min_samples_leaf=4,
+            min_samples_split=8,
+            random_state=42,
+        ),
         "random_forest": RandomForestRegressor(
             n_estimators=200,
             max_depth=12,
@@ -90,27 +88,23 @@ def train_all(
             n_jobs=-1,
             random_state=42,
         ),
-        "gradient_boosting": GradientBoostingRegressor(
-            n_estimators=200,
-            max_depth=5,
-            learning_rate=0.05,
-            subsample=0.8,
+        "knn": KNeighborsRegressor(
+            n_neighbors=10,
+            weights="distance",
+            metric="euclidean",
+            n_jobs=-1,
+        ),
+        "mlp": MLPRegressor(
+            hidden_layer_sizes=(128, 64, 32),
+            activation="relu",
+            solver="adam",
+            learning_rate_init=0.001,
+            max_iter=300,
+            early_stopping=True,
+            validation_fraction=0.1,
             random_state=42,
         ),
-        "ridge": Ridge(alpha=10.0),
     }
-
-    if _XGBOOST_AVAILABLE:
-        model_configs["xgboost"] = XGBRegressor(
-            n_estimators=200,
-            max_depth=6,
-            learning_rate=0.05,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            random_state=42,
-            n_jobs=-1,
-            verbosity=0,
-        )
 
     trained: dict[str, dict] = {}
 
@@ -164,7 +158,8 @@ def evaluate_all(
     Returns
     -------
     pd.DataFrame
-        Colonnes : model, r2_val, rmse_val, mape_val, r2_test, rmse_test, mape_test.
+        Colonnes : model, r2_val, rmse_val, mape_val, r2_test, rmse_test, mape_test,
+                   train_time_s.
         Triée par r2_test décroissant.
     """
     rows = []
@@ -184,11 +179,13 @@ def evaluate_all(
                     "r2_test": test_m["r2"],
                     "rmse_test": test_m["rmse"],
                     "mape_test": test_m["mape"],
+                    "train_time_s": info.get("train_time_s", 0.0),
                 }
             )
             logger.info(
                 f"{name:25s} | val R²={val_m['r2']:.4f} MAPE={val_m['mape']:.2f}% "
-                f"| test R²={test_m['r2']:.4f} MAPE={test_m['mape']:.2f}%"
+                f"| test R²={test_m['r2']:.4f} MAPE={test_m['mape']:.2f}% "
+                f"| train={info.get('train_time_s', 0):.1f}s"
             )
         except Exception as exc:
             logger.error(f"Erreur évaluation de {name} : {exc}")
@@ -198,6 +195,15 @@ def evaluate_all(
         df_results = df_results.sort_values("r2_test", ascending=False).reset_index(
             drop=True
         )
+
+    # Affichage tableau comparatif
+    if not df_results.empty:
+        logger.info("\n" + "="*80)
+        logger.info("TABLEAU COMPARATIF DES MODÈLES")
+        logger.info("="*80)
+        logger.info(df_results.to_string(index=False))
+        logger.info("="*80)
+
     return df_results
 
 
@@ -210,9 +216,6 @@ def select_best_model(
 ) -> str | None:
     """
     Retourne le nom du meilleur modèle si r2_test > R2_THRESHOLD.
-
-    Si un benchmark (prévision RTE) est fourni, le modèle doit aussi
-    surpasser le benchmark en MAPE.
 
     Parameters
     ----------
@@ -244,7 +247,6 @@ def select_best_model(
                 f"MAPE du modèle ({best['mape_test']:.2f}%) > MAPE benchmark RTE ({benchmark['mape']:.2f}%). "
                 "Le modèle ne surpasse pas la prévision RTE J-1."
             )
-            # On sélectionne quand même si R² est bon
 
     logger.info(
         f"Meilleur modèle sélectionné : '{best['model']}' (R²={best['r2_test']:.4f})"
@@ -274,7 +276,6 @@ def benchmark_rte(
     dict
         {"r2": float, "rmse": float, "mape": float}
     """
-    # Masque des valeurs non-NaN dans les deux séries
     mask = ~(np.isnan(y_true) | np.isnan(y_prevision))
     if mask.sum() == 0:
         logger.warning("Benchmark RTE : aucune paire valide (tout NaN).")
@@ -300,9 +301,6 @@ def save_model_if_better(
     """
     Sauvegarde le pipeline en joblib seulement s'il est meilleur que l'existant.
 
-    Compare le R² test avec le modèle déjà sur disque (si présent).
-    Écrit aussi un fichier <model_name>.metrics.json.
-
     Parameters
     ----------
     pipeline : Pipeline
@@ -327,7 +325,6 @@ def save_model_if_better(
 
     new_r2 = metrics.get("r2_test", 0.0)
 
-    # Chargement des métriques existantes
     if metrics_path.exists():
         try:
             with open(metrics_path) as f:
@@ -345,11 +342,9 @@ def save_model_if_better(
         except Exception as exc:
             logger.warning(f"Impossible de lire les métriques existantes : {exc}")
 
-    # Sauvegarde du modèle
     joblib.dump(pipeline, joblib_path)
     logger.info(f"Modèle sauvegardé : {joblib_path}")
 
-    # Sauvegarde des métriques
     with open(metrics_path, "w") as f:
         json.dump(metrics, f, indent=2)
     logger.info(f"Métriques sauvegardées : {metrics_path}")
