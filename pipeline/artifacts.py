@@ -18,10 +18,12 @@ _AZURE_CONTAINER = os.getenv("AZURE_BLOB_CONTAINER_ARTIFACTS", "mlflow-artifacts
 
 # ─── Azure Blob (lazy import) ─────────────────────────────────────────────────
 
+
 def _get_blob_client(blob_name: str):
     """Retourne un BlobClient Azure configuré."""
     try:
         from azure.storage.blob import BlobServiceClient
+
         conn_str = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
         account = os.getenv("AZURE_STORAGE_ACCOUNT")
         key = os.getenv("AZURE_STORAGE_KEY")
@@ -33,10 +35,14 @@ def _get_blob_client(blob_name: str):
                 credential=key,
             )
         else:
-            raise EnvironmentError("Azure Storage non configuré (CONNECTION_STRING ou ACCOUNT+KEY requis).")
+            raise EnvironmentError(
+                "Azure Storage non configuré (CONNECTION_STRING ou ACCOUNT+KEY requis)."
+            )
         return svc.get_blob_client(container=_AZURE_CONTAINER, blob=blob_name)
     except ImportError:
-        raise ImportError("azure-storage-blob non installé. pip install azure-storage-blob")
+        raise ImportError(
+            "azure-storage-blob non installé. pip install azure-storage-blob"
+        )
 
 
 def _upload_to_azure(local_path: Path, blob_name: str) -> None:
@@ -66,6 +72,7 @@ def _download_from_azure(blob_name: str, local_path: Path) -> None:
 
 
 # ─── Gestion des chemins ──────────────────────────────────────────────────────
+
 
 def artifact_path(filename: str, run_id: str | None = None) -> Path:
     """
@@ -97,6 +104,7 @@ def _blob_name(filename: str, run_id: str | None) -> str:
 
 
 # ─── Parquet ─────────────────────────────────────────────────────────────────
+
 
 def save_parquet(df: pd.DataFrame, filename: str, run_id: str | None = None) -> None:
     """
@@ -140,6 +148,7 @@ def load_parquet(filename: str, run_id: str | None = None) -> pd.DataFrame:
 
 # ─── Splits ──────────────────────────────────────────────────────────────────
 
+
 def save_splits(
     X_train: np.ndarray,
     X_val: np.ndarray,
@@ -160,7 +169,11 @@ def save_splits(
     feature_names : list[str]
     run_id : str | None
     """
-    for name, X, y in [("train", X_train, y_train), ("val", X_val, y_val), ("test", X_test, y_test)]:
+    for name, X, y in [
+        ("train", X_train, y_train),
+        ("val", X_val, y_val),
+        ("test", X_test, y_test),
+    ]:
         df_X = pd.DataFrame(X, columns=feature_names)
         df_y = pd.Series(y, name="consommation")
         df = pd.concat([df_X, df_y], axis=1)
@@ -203,6 +216,7 @@ def load_splits(run_id: str | None = None) -> dict:
 
 
 # ─── Meta ────────────────────────────────────────────────────────────────────
+
 
 def save_meta(data: dict, run_id: str | None = None) -> None:
     """

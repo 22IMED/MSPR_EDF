@@ -35,7 +35,11 @@ from pipeline.artifacts import (
     save_parquet,
     save_splits,
 )
-from pipeline.snowflake_io import SnowflakeUnavailableError, load_from_snowflake, write_predictions_to_snowflake
+from pipeline.snowflake_io import (
+    SnowflakeUnavailableError,
+    load_from_snowflake,
+    write_predictions_to_snowflake,
+)
 from preprocessing.constants import FEATURE_COLS
 from preprocessing.extract import extract
 from preprocessing.load import load
@@ -49,7 +53,6 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
-
 
 
 # ─── Configuration ────────────────────────────────────────────────────────────
@@ -66,6 +69,7 @@ load_dotenv()
 
 # ─── Helpers MLflow run ID ────────────────────────────────────────────────────
 
+
 def _save_mlflow_run_id(mlflow_run_id: str, run_id: str | None) -> None:
     path = artifact_path("mlflow_run_id.txt", run_id)
     path.write_text(mlflow_run_id)
@@ -80,6 +84,7 @@ def _load_mlflow_run_id(run_id: str | None) -> str | None:
 
 
 # ─── Step 1 : Extraction ─────────────────────────────────────────────────────
+
 
 def run_extract(run_id: str | None = None) -> str:
     """
@@ -112,7 +117,9 @@ def run_extract(run_id: str | None = None) -> str:
             # DataFrame Snowflake déjà agrégé → on le sauvegarde directement
             save_parquet(df, "raw.parquet", run_id)
             save_parquet(df, "daily.parquet", run_id)
-            save_meta({"source": "snowflake", "run_id": run_id, "n_rows": len(df)}, run_id)
+            save_meta(
+                {"source": "snowflake", "run_id": run_id, "n_rows": len(df)}, run_id
+            )
             logger.info(f"Extraction Snowflake terminée : {len(df):,} lignes.")
             return run_id
         except SnowflakeUnavailableError as exc:
@@ -129,14 +136,23 @@ def run_extract(run_id: str | None = None) -> str:
     # Nettoyer les colonnes mixtes
     for col in df_raw.columns:
         if df_raw[col].dtype == object:
-            df_raw[col] = df_raw[col].astype(str).replace({'nan': None, 'ND': None})
+            df_raw[col] = df_raw[col].astype(str).replace({"nan": None, "ND": None})
     save_parquet(df_raw, "raw.parquet", run_id)
-    save_meta({"source": "xls", "run_id": run_id, "n_rows": len(df_raw), "files": [f.name for f in xls_files]}, run_id)
+    save_meta(
+        {
+            "source": "xls",
+            "run_id": run_id,
+            "n_rows": len(df_raw),
+            "files": [f.name for f in xls_files],
+        },
+        run_id,
+    )
     logger.info(f"Extraction XLS terminée : {len(df_raw):,} lignes.")
     return run_id
 
 
 # ─── Step 2 : Nettoyage ──────────────────────────────────────────────────────
+
 
 def run_clean(run_id: str | None = None) -> None:
     """
@@ -161,6 +177,7 @@ def run_clean(run_id: str | None = None) -> None:
 
 # ─── Step 3 : Agrégation ─────────────────────────────────────────────────────
 
+
 def run_aggregate(run_id: str | None = None) -> None:
     """
     Étape 3 — Agrégation journalière.
@@ -183,6 +200,7 @@ def run_aggregate(run_id: str | None = None) -> None:
 
 # ─── Step 4 : Feature engineering ────────────────────────────────────────────
 
+
 def run_features(run_id: str | None = None) -> None:
     """
     Étape 4 — Feature engineering.
@@ -198,10 +216,13 @@ def run_features(run_id: str | None = None) -> None:
 
     df_features = engineer_features(df_daily)
     save_parquet(df_features, "features.parquet", run_id)
-    logger.info(f"Feature engineering terminé : {len(df_features):,} lignes, {len(FEATURE_COLS)} features.")
+    logger.info(
+        f"Feature engineering terminé : {len(df_features):,} lignes, {len(FEATURE_COLS)} features."
+    )
 
 
 # ─── Step 5 : Split train/val/test ───────────────────────────────────────────
+
 
 def run_load_splits(run_id: str | None = None) -> None:
     """
@@ -223,6 +244,7 @@ def run_load_splits(run_id: str | None = None) -> None:
 
 
 # ─── Step 6 : Entraînement ───────────────────────────────────────────────────
+
 
 def run_train(run_id: str | None = None) -> None:
     """
@@ -256,12 +278,14 @@ def run_train(run_id: str | None = None) -> None:
         _save_mlflow_run_id(mlflow_run_id, run_id)
 
         # Params globaux
-        mlflow.log_params({
-            "n_features": len(feature_names),
-            "n_train": len(X_train),
-            "feature_names": ",".join(feature_names),
-            "data_source": _DATA_SOURCE,
-        })
+        mlflow.log_params(
+            {
+                "n_features": len(feature_names),
+                "n_train": len(X_train),
+                "feature_names": ",".join(feature_names),
+                "data_source": _DATA_SOURCE,
+            }
+        )
         mlflow.log_metric("train_duration_s", round(train_duration, 2))
 
         # Log de chaque modèle
@@ -271,13 +295,18 @@ def run_train(run_id: str | None = None) -> None:
             r2 = float(r2_score(y_train, y_pred_train))
 
             # Params modèle
-            model_params = {f"{name}__{k}": v for k, v in info["params"].items()
-                            if isinstance(v, (int, float, str, bool))}
+            model_params = {
+                f"{name}__{k}": v
+                for k, v in info["params"].items()
+                if isinstance(v, (int, float, str, bool))
+            }
             mlflow.log_params(model_params)
-            mlflow.log_metrics({
-                f"{name}_r2_train": r2,
-                f"{name}_train_time_s": info["train_time_s"],
-            })
+            mlflow.log_metrics(
+                {
+                    f"{name}_r2_train": r2,
+                    f"{name}_train_time_s": info["train_time_s"],
+                }
+            )
 
             # Log du modèle sklearn
             try:
@@ -298,14 +327,18 @@ def run_train(run_id: str | None = None) -> None:
     #     for name, info in trained.items()
     # }
     import joblib
+
     _MODELS_DIR.mkdir(parents=True, exist_ok=True)
     for name, info in trained.items():
         joblib.dump(info["pipeline"], _MODELS_DIR / f"{name}_candidate.joblib")
 
-    logger.info(f"Entraînement terminé : {len(trained)} modèles, {train_duration:.1f}s.")
+    logger.info(
+        f"Entraînement terminé : {len(trained)} modèles, {train_duration:.1f}s."
+    )
 
 
 # ─── Step 7 : Validation ─────────────────────────────────────────────────────
+
 
 def run_validate(run_id: str | None = None) -> str:
     """
@@ -341,7 +374,9 @@ def run_validate(run_id: str | None = None) -> str:
             logger.warning(f"Impossible de charger {joblib_path} : {exc}")
 
     if not trained:
-        raise RuntimeError("Aucun modèle candidat trouvé dans models/. Relancer run_train().")
+        raise RuntimeError(
+            "Aucun modèle candidat trouvé dans models/. Relancer run_train()."
+        )
 
     results_df = evaluate_all(trained, X_val, y_val, X_test, y_test)
     best_model_name = select_best_model(results_df)
@@ -356,16 +391,19 @@ def run_validate(run_id: str | None = None) -> str:
 
     # Sauvegarde des résultats d'évaluation
     save_parquet(results_df, "evaluation_results.parquet", run_id)
-    save_meta({
-        **load_meta(run_id),
-        "best_model": best_model_name,
-        "r2_test": float(best_row["r2_test"]),
-        "rmse_test": float(best_row["rmse_test"]),
-        "mape_test": float(best_row["mape_test"]),
-        "r2_val": float(best_row["r2_val"]),
-        "rmse_val": float(best_row["rmse_val"]),
-        "mape_val": float(best_row["mape_val"]),
-    }, run_id)
+    save_meta(
+        {
+            **load_meta(run_id),
+            "best_model": best_model_name,
+            "r2_test": float(best_row["r2_test"]),
+            "rmse_test": float(best_row["rmse_test"]),
+            "mape_test": float(best_row["mape_test"]),
+            "r2_val": float(best_row["r2_val"]),
+            "rmse_val": float(best_row["rmse_val"]),
+            "mape_val": float(best_row["mape_val"]),
+        },
+        run_id,
+    )
 
     # Log dans MLflow (run existant)
     mlflow_run_id = _load_mlflow_run_id(run_id)
@@ -373,14 +411,16 @@ def run_validate(run_id: str | None = None) -> str:
         try:
             mlflow.set_tracking_uri(_MLFLOW_URI)
             with mlflow.start_run(run_id=mlflow_run_id):
-                mlflow.log_metrics({
-                    "best_r2_val": float(best_row["r2_val"]),
-                    "best_rmse_val": float(best_row["rmse_val"]),
-                    "best_mape_val": float(best_row["mape_val"]),
-                    "best_r2_test": float(best_row["r2_test"]),
-                    "best_rmse_test": float(best_row["rmse_test"]),
-                    "best_mape_test": float(best_row["mape_test"]),
-                })
+                mlflow.log_metrics(
+                    {
+                        "best_r2_val": float(best_row["r2_val"]),
+                        "best_rmse_val": float(best_row["rmse_val"]),
+                        "best_mape_val": float(best_row["mape_val"]),
+                        "best_r2_test": float(best_row["r2_test"]),
+                        "best_rmse_test": float(best_row["rmse_test"]),
+                        "best_mape_test": float(best_row["mape_test"]),
+                    }
+                )
                 mlflow.log_param("best_model", best_model_name)
         except Exception as exc:
             logger.warning(f"MLflow log validation échoué : {exc}")
@@ -390,7 +430,9 @@ def run_validate(run_id: str | None = None) -> str:
     try:
         result = subprocess.run(
             [sys.executable, "-m", "pytest", "tests/", "-v", "--tb=short", "-q"],
-            capture_output=True, text=True, timeout=120,
+            capture_output=True,
+            text=True,
+            timeout=120,
         )
         if result.returncode not in (0, 5):  # 5 = aucun test collecté
             logger.error(f"Tests pytest échoués :\n{result.stdout}\n{result.stderr}")
@@ -401,11 +443,14 @@ def run_validate(run_id: str | None = None) -> str:
     except FileNotFoundError:
         logger.warning("pytest non trouvé — tests ignorés.")
 
-    logger.info(f"Validation OK : meilleur modèle = '{best_model_name}' (R²={best_row['r2_test']:.4f})")
+    logger.info(
+        f"Validation OK : meilleur modèle = '{best_model_name}' (R²={best_row['r2_test']:.4f})"
+    )
     return best_model_name
 
 
 # ─── Step 8 : Enregistrement MLflow ──────────────────────────────────────────
+
 
 def run_register_model(run_id: str | None = None) -> None:
     """
@@ -449,20 +494,23 @@ def run_register_model(run_id: str | None = None) -> None:
     }
 
     # Sauvegarde locale
-    save_model_if_better(
-        pipeline, best_model_name, metrics_dict, str(_MODELS_DIR)
-    )
+    save_model_if_better(pipeline, best_model_name, metrics_dict, str(_MODELS_DIR))
 
     # Enregistrement dans MLflow Registry
     try:
         model_uri = f"runs:/{mlflow_run_id}/models/{best_model_name}"
         mv = mlflow.register_model(model_uri, registry_name)
         version = mv.version
-        logger.info(f"Modèle enregistré dans MLflow Registry : {registry_name} v{version}")
+        logger.info(
+            f"Modèle enregistré dans MLflow Registry : {registry_name} v{version}"
+        )
 
         # Transition Staging
         client.transition_model_version_stage(
-            name=registry_name, version=version, stage="Staging", archive_existing_versions=False
+            name=registry_name,
+            version=version,
+            stage="Staging",
+            archive_existing_versions=False,
         )
         logger.info(f"Modèle transitionné vers Staging (v{version}).")
         registry_stage = "Staging"
@@ -471,20 +519,31 @@ def run_register_model(run_id: str | None = None) -> None:
         if meta["mape_test"] <= _MAPE_PROD_THRESHOLD:
             # Archive anciennes versions Production
             try:
-                for mv_old in client.get_latest_versions(registry_name, stages=["Production"]):
+                for mv_old in client.get_latest_versions(
+                    registry_name, stages=["Production"]
+                ):
                     client.transition_model_version_stage(
-                        name=registry_name, version=mv_old.version,
-                        stage="Archived", archive_existing_versions=False
+                        name=registry_name,
+                        version=mv_old.version,
+                        stage="Archived",
+                        archive_existing_versions=False,
                     )
-                    logger.info(f"Ancienne version Production archivée : v{mv_old.version}")
+                    logger.info(
+                        f"Ancienne version Production archivée : v{mv_old.version}"
+                    )
             except Exception as exc:
                 logger.warning(f"Archive anciennes versions échoué : {exc}")
 
             client.transition_model_version_stage(
-                name=registry_name, version=version, stage="Production", archive_existing_versions=False
+                name=registry_name,
+                version=version,
+                stage="Production",
+                archive_existing_versions=False,
             )
             registry_stage = "Production"
-            logger.info(f"Modèle transitionné vers Production (MAPE={meta['mape_test']:.2f}% ≤ {_MAPE_PROD_THRESHOLD}%).")
+            logger.info(
+                f"Modèle transitionné vers Production (MAPE={meta['mape_test']:.2f}% ≤ {_MAPE_PROD_THRESHOLD}%)."
+            )
         else:
             logger.info(
                 f"Modèle maintenu en Staging (MAPE={meta['mape_test']:.2f}% > {_MAPE_PROD_THRESHOLD}%)."
@@ -521,6 +580,7 @@ def run_register_model(run_id: str | None = None) -> None:
 
 
 # ─── Step 9 : Prédictions ────────────────────────────────────────────────────
+
 
 def run_predictions(run_id: str | None = None) -> pd.DataFrame:
     """
@@ -561,13 +621,15 @@ def run_predictions(run_id: str | None = None) -> pd.DataFrame:
     n_test = len(X_test)
     test_dates = df_features.index[-n_test:]
 
-    df_pred = pd.DataFrame({
-        "prediction_date": test_dates,
-        "prediction_mw": y_pred,
-        "actual_mw": y_test,
-        "model_name": best_model_name,
-        "pipeline_run_id": run_id or "default",
-    })
+    df_pred = pd.DataFrame(
+        {
+            "prediction_date": test_dates,
+            "prediction_mw": y_pred,
+            "actual_mw": y_test,
+            "model_name": best_model_name,
+            "pipeline_run_id": run_id or "default",
+        }
+    )
 
     # Ajout prévision RTE J-1 si disponible
     if "prevision_j1" in df_features.columns:
@@ -579,6 +641,7 @@ def run_predictions(run_id: str | None = None) -> pd.DataFrame:
 
 
 # ─── Step 10 : Écriture Snowflake ────────────────────────────────────────────
+
 
 def run_write_snowflake(run_id: str | None = None) -> int:
     """
@@ -595,7 +658,9 @@ def run_write_snowflake(run_id: str | None = None) -> int:
     logger.info("=== STEP 10 : ÉCRITURE SNOWFLAKE ===")
 
     if _DATA_SOURCE.lower() != "snowflake" and not os.getenv("FORCE_SNOWFLAKE_WRITE"):
-        logger.info("DATA_SOURCE != snowflake et FORCE_SNOWFLAKE_WRITE non défini. Étape ignorée.")
+        logger.info(
+            "DATA_SOURCE != snowflake et FORCE_SNOWFLAKE_WRITE non défini. Étape ignorée."
+        )
         return 0
 
     try:

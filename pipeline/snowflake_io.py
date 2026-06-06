@@ -39,6 +39,7 @@ def _get_connection():
         )
     try:
         import snowflake.connector
+
         conn = snowflake.connector.connect(
             account=_SF_ACCOUNT,
             user=_SF_USER,
@@ -54,7 +55,9 @@ def _get_connection():
             ocsp_fail_open=True,
             client_session_keep_alive=True,
         )
-        logger.info(f"Connexion Snowflake établie : {_SF_ACCOUNT}/{_SF_DATABASE}.{_SF_SCHEMA}")
+        logger.info(
+            f"Connexion Snowflake établie : {_SF_ACCOUNT}/{_SF_DATABASE}.{_SF_SCHEMA}"
+        )
         return conn
     except ImportError:
         raise SnowflakeUnavailableError(
@@ -214,7 +217,9 @@ def write_predictions_to_snowflake(df: pd.DataFrame) -> int:
         """)
         rows_written = len(df)
         conn.commit()
-        logger.info(f"Snowflake : {rows_written} prédictions écrites dans {_TABLE_PREDICTIONS}.")
+        logger.info(
+            f"Snowflake : {rows_written} prédictions écrites dans {_TABLE_PREDICTIONS}."
+        )
     except Exception as exc:
         raise SnowflakeUnavailableError(f"Écriture Snowflake échouée : {exc}") from exc
     finally:

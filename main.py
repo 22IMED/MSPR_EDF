@@ -28,7 +28,9 @@ from pydantic import BaseModel, Field, field_validator
 from preprocessing.constants import FEATURE_COLS, JOURS_FERIES_FR, SAISON_MAP
 
 # ─── Logging ─────────────────────────────────────────────────────────────────
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s — %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s — %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # ─── Configuration ────────────────────────────────────────────────────────────
@@ -124,6 +126,7 @@ def _load_metrics(model_name: str) -> dict:
 
 # ─── Feature engineering (réplique de preprocessing/transform.py) ─────────────
 
+
 def _build_features(
     target_date: date,
     prevision_j1: Optional[float],
@@ -187,9 +190,12 @@ def _build_features(
 
 # ─── Schémas Pydantic ────────────────────────────────────────────────────────
 
+
 class PredictRequest(BaseModel):
     date: str = Field(..., description="Date de prédiction au format YYYY-MM-DD")
-    prevision_j1: Optional[float] = Field(None, description="Prévision RTE J-1 (MW)", ge=0)
+    prevision_j1: Optional[float] = Field(
+        None, description="Prévision RTE J-1 (MW)", ge=0
+    )
     lag_1: Optional[float] = Field(None, description="Consommation J-1 (MW)", ge=0)
     lag_7: Optional[float] = Field(None, description="Consommation J-7 (MW)", ge=0)
     model_name: Optional[str] = Field(None, description="Nom du modèle à utiliser")
@@ -233,6 +239,7 @@ class HealthResponse(BaseModel):
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
+
 @app.post("/predict", response_model=PredictResponse)
 async def predict(request: PredictRequest):
     """Prédiction de la consommation électrique pour une date donnée."""
@@ -249,14 +256,18 @@ async def predict(request: PredictRequest):
         raise HTTPException(status_code=404, detail=str(exc))
 
     target_date = datetime.strptime(request.date, "%Y-%m-%d").date()
-    features = _build_features(target_date, request.prevision_j1, request.lag_1, request.lag_7)
+    features = _build_features(
+        target_date, request.prevision_j1, request.lag_1, request.lag_7
+    )
 
     try:
         prediction = float(pipeline.predict(features)[0])
     except Exception as exc:
         _prom_errors_total += 1
         logger.error(f"Erreur prédiction : {exc}")
-        raise HTTPException(status_code=500, detail=f"Erreur lors de la prédiction : {exc}")
+        raise HTTPException(
+            status_code=500, detail=f"Erreur lors de la prédiction : {exc}"
+        )
 
     latency_ms = (time.time() - t_start) * 1000
     _prom_latency_sum[model_name] += latency_ms
@@ -313,17 +324,19 @@ async def list_models():
         if name.endswith("_candidate"):
             continue
         metrics = _load_metrics(name)
-        available.append({
-            "model_name": name,
-            "path": str(joblib_path),
-            "r2_score": metrics.get("r2_score"),
-            "mape_percent": metrics.get("mape_percent"),
-            "rmse_mw": metrics.get("rmse_mw"),
-            "mlflow_run_id": metrics.get("mlflow_run_id"),
-            "registry_version": metrics.get("registry_version"),
-            "registry_stage": metrics.get("registry_stage"),
-            "validated_at": metrics.get("validated_at"),
-        })
+        available.append(
+            {
+                "model_name": name,
+                "path": str(joblib_path),
+                "r2_score": metrics.get("r2_score"),
+                "mape_percent": metrics.get("mape_percent"),
+                "rmse_mw": metrics.get("rmse_mw"),
+                "mlflow_run_id": metrics.get("mlflow_run_id"),
+                "registry_version": metrics.get("registry_version"),
+                "registry_stage": metrics.get("registry_stage"),
+                "validated_at": metrics.get("validated_at"),
+            }
+        )
     return {"available_models": available, "count": len(available)}
 
 

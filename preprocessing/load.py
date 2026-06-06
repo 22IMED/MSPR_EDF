@@ -59,7 +59,9 @@ def load(
 
     n = len(df)
     if n < 30:
-        raise ValueError(f"Dataset trop petit ({n} lignes) pour un split train/val/test.")
+        raise ValueError(
+            f"Dataset trop petit ({n} lignes) pour un split train/val/test."
+        )
 
     # Tri chronologique
     df = df.sort_index()
@@ -69,8 +71,8 @@ def load(
     n_test = n - n_train - n_val
 
     logger.info(
-        f"Split chronologique : train={n_train} ({TRAIN_RATIO*100:.0f}%), "
-        f"val={n_val} ({VAL_RATIO*100:.0f}%), test={n_test} ({(1-TRAIN_RATIO-VAL_RATIO)*100:.0f}%)"
+        f"Split chronologique : train={n_train} ({TRAIN_RATIO * 100:.0f}%), "
+        f"val={n_val} ({VAL_RATIO * 100:.0f}%), test={n_test} ({(1 - TRAIN_RATIO - VAL_RATIO) * 100:.0f}%)"
     )
 
     X = df[FEATURE_COLS].values

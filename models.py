@@ -17,6 +17,7 @@ from sklearn.preprocessing import StandardScaler
 
 try:
     from xgboost import XGBRegressor
+
     _XGBOOST_AVAILABLE = True
 except ImportError:
     _XGBOOST_AVAILABLE = False
@@ -32,6 +33,7 @@ R2_THRESHOLD = float(os.getenv("R2_THRESHOLD", str(R2_THRESHOLD)))
 
 
 # ─── Fonctions de métriques ───────────────────────────────────────────────────
+
 
 def _mape(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     """Calcule le Mean Absolute Percentage Error (MAPE)."""
@@ -56,6 +58,7 @@ def _compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]
 
 
 # ─── Entraînement ─────────────────────────────────────────────────────────────
+
 
 def train_all(
     X_train: np.ndarray,
@@ -113,10 +116,12 @@ def train_all(
 
     for name, estimator in model_configs.items():
         logger.info(f"Entraînement de {name}...")
-        pipeline = Pipeline([
-            ("scaler", StandardScaler()),
-            ("model", estimator),
-        ])
+        pipeline = Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                ("model", estimator),
+            ]
+        )
         t0 = time.time()
         try:
             pipeline.fit(X_train, y_train)
@@ -135,6 +140,7 @@ def train_all(
 
 
 # ─── Évaluation ───────────────────────────────────────────────────────────────
+
 
 def evaluate_all(
     trained: dict[str, dict],
@@ -169,15 +175,17 @@ def evaluate_all(
             y_pred_test = pipeline.predict(X_test)
             val_m = _compute_metrics(y_val, y_pred_val)
             test_m = _compute_metrics(y_test, y_pred_test)
-            rows.append({
-                "model": name,
-                "r2_val": val_m["r2"],
-                "rmse_val": val_m["rmse"],
-                "mape_val": val_m["mape"],
-                "r2_test": test_m["r2"],
-                "rmse_test": test_m["rmse"],
-                "mape_test": test_m["mape"],
-            })
+            rows.append(
+                {
+                    "model": name,
+                    "r2_val": val_m["r2"],
+                    "rmse_val": val_m["rmse"],
+                    "mape_val": val_m["mape"],
+                    "r2_test": test_m["r2"],
+                    "rmse_test": test_m["rmse"],
+                    "mape_test": test_m["mape"],
+                }
+            )
             logger.info(
                 f"{name:25s} | val R²={val_m['r2']:.4f} MAPE={val_m['mape']:.2f}% "
                 f"| test R²={test_m['r2']:.4f} MAPE={test_m['mape']:.2f}%"
@@ -187,11 +195,14 @@ def evaluate_all(
 
     df_results = pd.DataFrame(rows)
     if not df_results.empty:
-        df_results = df_results.sort_values("r2_test", ascending=False).reset_index(drop=True)
+        df_results = df_results.sort_values("r2_test", ascending=False).reset_index(
+            drop=True
+        )
     return df_results
 
 
 # ─── Sélection du meilleur modèle ─────────────────────────────────────────────
+
 
 def select_best_model(
     results_df: pd.DataFrame,
@@ -235,11 +246,14 @@ def select_best_model(
             )
             # On sélectionne quand même si R² est bon
 
-    logger.info(f"Meilleur modèle sélectionné : '{best['model']}' (R²={best['r2_test']:.4f})")
+    logger.info(
+        f"Meilleur modèle sélectionné : '{best['model']}' (R²={best['r2_test']:.4f})"
+    )
     return str(best["model"])
 
 
 # ─── Benchmark RTE ────────────────────────────────────────────────────────────
+
 
 def benchmark_rte(
     y_true: np.ndarray,
@@ -275,6 +289,7 @@ def benchmark_rte(
 
 
 # ─── Sauvegarde conditionnelle ─────────────────────────────────────────────────
+
 
 def save_model_if_better(
     pipeline: Pipeline,
@@ -324,7 +339,9 @@ def save_model_if_better(
                     "Sauvegarde ignorée."
                 )
                 return None
-            logger.info(f"Amélioration détectée (R²: {existing_r2:.4f} → {new_r2:.4f}).")
+            logger.info(
+                f"Amélioration détectée (R²: {existing_r2:.4f} → {new_r2:.4f})."
+            )
         except Exception as exc:
             logger.warning(f"Impossible de lire les métriques existantes : {exc}")
 

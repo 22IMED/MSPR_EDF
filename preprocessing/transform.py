@@ -108,9 +108,13 @@ def aggregate_daily(df: pd.DataFrame) -> pd.DataFrame:
     agg.index = pd.to_datetime(agg.index)
 
     # Interpolation linéaire pour prevision_j1 manquante
-    agg["prevision_j1"] = agg["prevision_j1"].interpolate(method="linear", limit_direction="both")
+    agg["prevision_j1"] = agg["prevision_j1"].interpolate(
+        method="linear", limit_direction="both"
+    )
 
-    logger.info(f"Agrégation terminée : {len(agg):,} jours, de {agg.index.min().date()} à {agg.index.max().date()}.")
+    logger.info(
+        f"Agrégation terminée : {len(agg):,} jours, de {agg.index.min().date()} à {agg.index.max().date()}."
+    )
     return agg
 
 
@@ -145,7 +149,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     idx = df.index
 
     # Features temporelles de base
-    df["day_of_week"] = idx.dayofweek          # 0=Lundi, 6=Dimanche
+    df["day_of_week"] = idx.dayofweek  # 0=Lundi, 6=Dimanche
     df["month"] = idx.month
     df["day_of_year"] = idx.dayofyear
     df["is_weekend"] = (idx.dayofweek >= 5).astype(int)
@@ -180,5 +184,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     if missing:
         raise ValueError(f"Features manquantes après engineering : {missing}")
 
-    logger.info(f"Feature engineering terminé : {len(df):,} lignes, {len(FEATURE_COLS)} features.")
+    logger.info(
+        f"Feature engineering terminé : {len(df):,} lignes, {len(FEATURE_COLS)} features."
+    )
     return df

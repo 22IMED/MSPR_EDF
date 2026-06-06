@@ -18,7 +18,12 @@ _COL_ALIASES: dict[str, list[str]] = {
     _RTE_COL_DATE: ["Date", "date", "DATE"],
     _RTE_COL_HEURE: ["Heures", "Heure", "heures", "heure", "HEURES"],
     _RTE_COL_CONSO: ["Consommation", "consommation", "CONSOMMATION", "Consomm."],
-    _RTE_COL_PREVISION: ["Prévision J-1", "Prevision J-1", "prévision j-1", "Prévision J1"],
+    _RTE_COL_PREVISION: [
+        "Prévision J-1",
+        "Prevision J-1",
+        "prévision j-1",
+        "Prévision J1",
+    ],
 }
 
 
@@ -75,7 +80,10 @@ def _read_single_file(path: Path) -> pd.DataFrame:
         try:
             candidate = pd.read_excel(path, **strategy)
             candidate = _normalise_columns(candidate)
-            if _RTE_COL_DATE in candidate.columns and _RTE_COL_CONSO in candidate.columns:
+            if (
+                _RTE_COL_DATE in candidate.columns
+                and _RTE_COL_CONSO in candidate.columns
+            ):
                 df = candidate
                 logger.debug(f"Lecture réussie avec {strategy}")
                 break
@@ -95,7 +103,10 @@ def _read_single_file(path: Path) -> pd.DataFrame:
                     on_bad_lines="skip",
                 )
                 candidate = _normalise_columns(candidate)
-                if _RTE_COL_DATE in candidate.columns and _RTE_COL_CONSO in candidate.columns:
+                if (
+                    _RTE_COL_DATE in candidate.columns
+                    and _RTE_COL_CONSO in candidate.columns
+                ):
                     df = candidate
                     logger.debug(f"Lecture réussie en mode CSV (sep={repr(sep)})")
                     break
@@ -119,7 +130,9 @@ def _read_single_file(path: Path) -> pd.DataFrame:
 
     # Ajout colonne Prévision J-1 si absente
     if _RTE_COL_PREVISION not in df.columns:
-        logger.warning(f"Colonne '{_RTE_COL_PREVISION}' absente dans {path}, remplissage NaN.")
+        logger.warning(
+            f"Colonne '{_RTE_COL_PREVISION}' absente dans {path}, remplissage NaN."
+        )
         df[_RTE_COL_PREVISION] = float("nan")
 
     return df
@@ -165,5 +178,7 @@ def extract(paths: list[Path]) -> pd.DataFrame:
             raise
 
     merged = pd.concat(frames, ignore_index=True)
-    logger.info(f"Extraction terminée : {len(merged):,} lignes au total depuis {len(paths)} fichier(s).")
+    logger.info(
+        f"Extraction terminée : {len(merged):,} lignes au total depuis {len(paths)} fichier(s)."
+    )
     return merged

@@ -20,7 +20,9 @@ def main() -> None:
     reload = os.getenv("API_RELOAD", "false").lower() == "true"
     log_level = os.getenv("LOG_LEVEL", "info").lower()
 
-    logger.info(f"Démarrage de l'API EDF Consumption sur {host}:{port} (workers={workers})")
+    logger.info(
+        f"Démarrage de l'API EDF Consumption sur {host}:{port} (workers={workers})"
+    )
 
     uvicorn.run(
         "main:app",
