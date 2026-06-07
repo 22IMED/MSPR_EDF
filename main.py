@@ -132,6 +132,13 @@ def _build_features(
     prevision_j1: Optional[float],
     lag_1: Optional[float],
     lag_7: Optional[float],
+    nucleaire: Optional[float] = None,
+    eolien: Optional[float] = None,
+    solaire: Optional[float] = None,
+    hydraulique: Optional[float] = None,
+    gaz: Optional[float] = None,
+    fioul: Optional[float] = None,
+    taux_co2: Optional[float] = None,
 ) -> np.ndarray:
     """
     Construit le vecteur de features pour une date donnée.
@@ -142,6 +149,13 @@ def _build_features(
     prevision_j1 : float | None
     lag_1 : float | None
     lag_7 : float | None
+    nucleaire : float | None
+    eolien : float | None
+    solaire : float | None
+    hydraulique : float | None
+    gaz : float | None
+    fioul : float | None
+    taux_co2 : float | None
 
     Returns
     -------
@@ -162,11 +176,11 @@ def _build_features(
     dow_sin = math.sin(2 * math.pi * dow / 7)
     dow_cos = math.cos(2 * math.pi * dow / 7)
 
-    # Valeurs par défaut pour les lags (estimations si non fournies)
+    # Valeurs par défaut
     pj1 = prevision_j1 if prevision_j1 is not None else 55_000.0
     l1 = lag_1 if lag_1 is not None else 55_000.0
     l7 = lag_7 if lag_7 is not None else 55_000.0
-    pj1_lag1 = pj1  # Approximation
+    pj1_lag1 = pj1
 
     feature_map = {
         "prevision_j1": pj1,
@@ -183,21 +197,32 @@ def _build_features(
         "lag_1": l1,
         "lag_7": l7,
         "prevision_j1_lag1": pj1_lag1,
+        "nucleaire": nucleaire if nucleaire is not None else 40_000.0,
+        "eolien": eolien if eolien is not None else 5_000.0,
+        "solaire": solaire if solaire is not None else 3_000.0,
+        "hydraulique": hydraulique if hydraulique is not None else 8_000.0,
+        "gaz": gaz if gaz is not None else 6_000.0,
+        "fioul": fioul if fioul is not None else 500.0,
+        "taux_co2": taux_co2 if taux_co2 is not None else 50.0,
     }
 
     return np.array([[feature_map[col] for col in FEATURE_COLS]])
-
 
 # ─── Schémas Pydantic ────────────────────────────────────────────────────────
 
 
 class PredictRequest(BaseModel):
     date: str = Field(..., description="Date de prédiction au format YYYY-MM-DD")
-    prevision_j1: Optional[float] = Field(
-        None, description="Prévision RTE J-1 (MW)", ge=0
-    )
+    prevision_j1: Optional[float] = Field(None, description="Prévision RTE J-1 (MW)", ge=0)
     lag_1: Optional[float] = Field(None, description="Consommation J-1 (MW)", ge=0)
     lag_7: Optional[float] = Field(None, description="Consommation J-7 (MW)", ge=0)
+    nucleaire: Optional[float] = Field(None, description="Production nucléaire (MW)", ge=0)
+    eolien: Optional[float] = Field(None, description="Production éolienne (MW)", ge=0)
+    solaire: Optional[float] = Field(None, description="Production solaire (MW)", ge=0)
+    hydraulique: Optional[float] = Field(None, description="Production hydraulique (MW)", ge=0)
+    gaz: Optional[float] = Field(None, description="Production gaz (MW)", ge=0)
+    fioul: Optional[float] = Field(None, description="Production fioul (MW)", ge=0)
+    taux_co2: Optional[float] = Field(None, description="Taux de CO2 (g/kWh)", ge=0)
     model_name: Optional[str] = Field(None, description="Nom du modèle à utiliser")
 
     @field_validator("date")
@@ -257,7 +282,17 @@ async def predict(request: PredictRequest):
 
     target_date = datetime.strptime(request.date, "%Y-%m-%d").date()
     features = _build_features(
-        target_date, request.prevision_j1, request.lag_1, request.lag_7
+        target_date,
+        request.prevision_j1,
+        request.lag_1,
+        request.lag_7,
+        request.nucleaire,
+        request.eolien,
+        request.solaire,
+        request.hydraulique,
+        request.gaz,
+        request.fioul,
+        request.taux_co2,
     )
 
     try:

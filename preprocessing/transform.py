@@ -96,21 +96,42 @@ def aggregate_daily(df: pd.DataFrame) -> pd.DataFrame:
     df["_date"] = pd.to_datetime(df[_RTE_COL_DATE], dayfirst=True, errors="coerce")
     df = df.dropna(subset=["_date"])
 
+    # Colonnes numériques supplémentaires à agréger
+    extra_cols = {
+        "nucleaire": "Nucléaire",
+        "eolien": "Eolien",
+        "solaire": "Solaire",
+        "hydraulique": "Hydraulique",
+        "gaz": "Gaz",
+        "fioul": "Fioul",
+        "taux_co2": "Taux de Co2",
+    }
+
+    # Convertir les colonnes extra en numérique
+    for canonical, col in extra_cols.items():
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    # Construire le dictionnaire d'agrégation
+    agg_dict = {
+        "consommation": (_RTE_COL_CONSO, "mean"),
+        "prevision_j1": (_RTE_COL_PREVISION, "mean"),
+    }
+    for canonical, col in extra_cols.items():
+        if col in df.columns:
+            agg_dict[canonical] = (col, "mean")
+
     agg = (
         df.groupby("_date")
-        .agg(
-            consommation=(_RTE_COL_CONSO, "mean"),
-            prevision_j1=(_RTE_COL_PREVISION, "mean"),
-        )
+        .agg(**agg_dict)
         .sort_index()
     )
     agg.index.name = "date"
     agg.index = pd.to_datetime(agg.index)
 
-    # Interpolation linéaire pour prevision_j1 manquante
-    agg["prevision_j1"] = agg["prevision_j1"].interpolate(
-        method="linear", limit_direction="both"
-    )
+    # Interpolation linéaire pour toutes les colonnes manquantes
+    for col in agg.columns:
+        agg[col] = agg[col].interpolate(method="linear", limit_direction="both")
 
     logger.info(
         f"Agrégation terminée : {len(agg):,} jours, de {agg.index.min().date()} à {agg.index.max().date()}."

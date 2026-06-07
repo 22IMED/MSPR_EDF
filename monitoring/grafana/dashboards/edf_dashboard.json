@@ -1,0 +1,177 @@
+{
+  "title": "EDF Consumption API — MLOps Dashboard",
+  "uid": "edf-mlops",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Nombre de requêtes /predict",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(edf_requests_total)",
+          "legendFormat": "Total requêtes"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Taux d'erreurs",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "expr": "edf_errors_total",
+          "legendFormat": "Erreurs totales"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Latence moyenne (ms)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "avg(edf_latency_ms_avg)",
+          "legendFormat": "Latence moyenne"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "R² du modèle en production",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "yellow", "value": 0.8 },
+              { "color": "green", "value": 0.95 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "edf_model_r2",
+          "legendFormat": "R²"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Requêtes par modèle (évolution)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        {
+          "expr": "edf_requests_total",
+          "legendFormat": "{{model}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Latence par modèle (ms)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        {
+          "expr": "edf_latency_ms_avg",
+          "legendFormat": "{{model}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "MAPE du modèle (%)",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 12 },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 10,
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "yellow", "value": 3 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "edf_model_mape_percent",
+          "legendFormat": "MAPE"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "RMSE du modèle (MW)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 12 },
+      "targets": [
+        {
+          "expr": "edf_model_mae_mw",
+          "legendFormat": "RMSE (MW)"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Disponibilité API",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 12 },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "options": { "0": { "text": "DOWN" }, "1": { "text": "UP" } }, "type": "value" }
+          ],
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "up{job='edf-api'}",
+          "legendFormat": "API Status"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Métriques MLflow — Comparaison modèles",
+      "type": "table",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "edf_model_r2",
+          "legendFormat": "R²"
+        },
+        {
+          "expr": "edf_model_mape_percent",
+          "legendFormat": "MAPE %"
+        },
+        {
+          "expr": "edf_model_mae_mw",
+          "legendFormat": "RMSE MW"
+        }
+      ]
+    }
+  ]
+}

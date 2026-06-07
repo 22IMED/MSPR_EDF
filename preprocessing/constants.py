@@ -113,6 +113,30 @@ JOURS_FERIES_FR: set[str] = {
     "2026-12-25",
 }
 
+FEATURE_COLS: list[str] = [
+    "prevision_j1",
+    "day_of_week",
+    "month",
+    "day_of_year",
+    "is_weekend",
+    "is_holiday",
+    "saison",
+    "month_sin",
+    "month_cos",
+    "dow_sin",
+    "dow_cos",
+    "lag_1",
+    "lag_7",
+    "prevision_j1_lag1",
+    # Nouvelles features énergétiques
+    "nucleaire",
+    "eolien",
+    "solaire",
+    "hydraulique",
+    "gaz",
+    "fioul",
+    "taux_co2",
+]
 # ─── Mapping saisons ──────────────────────────────────────────────────────────
 # 0=Hiver, 1=Printemps, 2=Été, 3=Automne
 SAISON_MAP: dict[int, int] = {
