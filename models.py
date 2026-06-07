@@ -198,11 +198,11 @@ def evaluate_all(
 
     # Affichage tableau comparatif
     if not df_results.empty:
-        logger.info("\n" + "="*80)
+        logger.info("\n" + "=" * 80)
         logger.info("TABLEAU COMPARATIF DES MODÈLES")
-        logger.info("="*80)
+        logger.info("=" * 80)
         logger.info(df_results.to_string(index=False))
-        logger.info("="*80)
+        logger.info("=" * 80)
 
     return df_results
 
