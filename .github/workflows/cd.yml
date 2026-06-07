@@ -17,6 +17,7 @@ env:
   CONTAINER_APP_ENV: mspr3-env
   MLFLOW_APP_NAME: edf-mlflow
   API_APP_NAME: edf-api
+  PIPELINE_JOB_NAME: edf-pipeline-job 
 
 jobs:
   # ──────────────────────────────────────────────────────────────────────────
@@ -144,7 +145,7 @@ jobs:
   deploy-pipeline-job:
     name: Deploy Pipeline Job
     runs-on: ubuntu-latest
-    needs: deploy-mlflow
+    needs: check
     steps:
       - name: Azure Login
         uses: azure/login@v2
