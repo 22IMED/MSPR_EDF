@@ -74,6 +74,7 @@ jobs:
           || az containerapp job update \
             --name ${{ env.PIPELINE_JOB_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
+            --container-name edf-pipeline-job \
             --image ${{ secrets.ACR_LOGIN_SERVER }}/edf-pipeline:${{ github.sha }}
   deploy-mlflow:
     name: Deploy MLflow Server
