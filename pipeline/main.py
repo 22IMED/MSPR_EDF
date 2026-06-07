@@ -61,6 +61,7 @@ def _upload_models():
 
     try:
         from azure.storage.blob import BlobServiceClient
+
         client = BlobServiceClient(
             account_url=f"https://{account}.blob.core.windows.net",
             credential=key,
@@ -69,7 +70,9 @@ def _upload_models():
 
         models_dir = Path(os.getenv("MODELS_DIR", "models"))
         uploaded = 0
-        for f in list(models_dir.glob("*.joblib")) + list(models_dir.glob("*.metrics.json")):
+        for f in list(models_dir.glob("*.joblib")) + list(
+            models_dir.glob("*.metrics.json")
+        ):
             with open(f, "rb") as data:
                 container.upload_blob(f.name, data, overwrite=True)
             logger.info(f"Uploadé : {f.name}")
