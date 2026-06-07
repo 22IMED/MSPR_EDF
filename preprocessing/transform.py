@@ -121,11 +121,7 @@ def aggregate_daily(df: pd.DataFrame) -> pd.DataFrame:
         if col in df.columns:
             agg_dict[canonical] = (col, "mean")
 
-    agg = (
-        df.groupby("_date")
-        .agg(**agg_dict)
-        .sort_index()
-    )
+    agg = df.groupby("_date").agg(**agg_dict).sort_index()
     agg.index.name = "date"
     agg.index = pd.to_datetime(agg.index)
 

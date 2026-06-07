@@ -208,18 +208,25 @@ def _build_features(
 
     return np.array([[feature_map[col] for col in FEATURE_COLS]])
 
+
 # ─── Schémas Pydantic ────────────────────────────────────────────────────────
 
 
 class PredictRequest(BaseModel):
     date: str = Field(..., description="Date de prédiction au format YYYY-MM-DD")
-    prevision_j1: Optional[float] = Field(None, description="Prévision RTE J-1 (MW)", ge=0)
+    prevision_j1: Optional[float] = Field(
+        None, description="Prévision RTE J-1 (MW)", ge=0
+    )
     lag_1: Optional[float] = Field(None, description="Consommation J-1 (MW)", ge=0)
     lag_7: Optional[float] = Field(None, description="Consommation J-7 (MW)", ge=0)
-    nucleaire: Optional[float] = Field(None, description="Production nucléaire (MW)", ge=0)
+    nucleaire: Optional[float] = Field(
+        None, description="Production nucléaire (MW)", ge=0
+    )
     eolien: Optional[float] = Field(None, description="Production éolienne (MW)", ge=0)
     solaire: Optional[float] = Field(None, description="Production solaire (MW)", ge=0)
-    hydraulique: Optional[float] = Field(None, description="Production hydraulique (MW)", ge=0)
+    hydraulique: Optional[float] = Field(
+        None, description="Production hydraulique (MW)", ge=0
+    )
     gaz: Optional[float] = Field(None, description="Production gaz (MW)", ge=0)
     fioul: Optional[float] = Field(None, description="Production fioul (MW)", ge=0)
     taux_co2: Optional[float] = Field(None, description="Taux de CO2 (g/kWh)", ge=0)
