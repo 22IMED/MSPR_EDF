@@ -11,29 +11,50 @@ env:
   REGISTRY: ${{ secrets.ACR_LOGIN_SERVER }}
 
 jobs:
-  # ──────────────────────────────────────────────────────────────────────────
-  test:
-    name: Lint & Tests
+  checkout:
+    name: Checkout & Install
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install --no-cache-dir -r requirements.txt
 
-      - name: Install dependencies
-        run: pip install --no-cache-dir -r requirements.txt
+  lint:
+    name: Ruff lint
+    runs-on: ubuntu-latest
+    needs: checkout
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install --no-cache-dir -r requirements.txt
+      - run: ruff check . --output-format=github
 
-      - name: Ruff lint
-        run: ruff check . --output-format=github
+  format:
+    name: Ruff format
+    runs-on: ubuntu-latest
+    needs: checkout
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install --no-cache-dir -r requirements.txt
+      - run: ruff format --check .
 
-      - name: Ruff format check
-        run: ruff format --check .
-
+  test:
+    name: Pytest
+    runs-on: ubuntu-latest
+    needs: checkout
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install --no-cache-dir -r requirements.txt
       - name: Run tests
         env:
           DATA_SOURCE: xls
@@ -47,38 +68,27 @@ jobs:
             --tb=short \
             --junitxml=junit.xml \
             -p no:warnings
-
-      - name: Upload test results
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: junit.xml
           retention-days: 14
 
-  # ──────────────────────────────────────────────────────────────────────────
   build:
     name: Build & Push Docker images
     runs-on: ubuntu-latest
-    needs: test
+    needs: [lint, format, test]
     if: github.ref == 'refs/heads/main'
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Login to Azure Container Registry
-        uses: azure/docker-login@v2
+      - uses: actions/checkout@v4
+      - uses: azure/docker-login@v2
         with:
           login-server: ${{ secrets.ACR_LOGIN_SERVER }}
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build & Push edf-api
-        uses: docker/build-push-action@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
         with:
           context: .
           file: docker/api/Dockerfile
@@ -88,9 +98,7 @@ jobs:
             ${{ secrets.ACR_LOGIN_SERVER }}/edf-api:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Build & Push edf-pipeline
-        uses: docker/build-push-action@v5
+      - uses: docker/build-push-action@v5
         with:
           context: .
           file: docker/pipeline/Dockerfile
