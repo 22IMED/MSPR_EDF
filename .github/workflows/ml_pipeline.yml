@@ -39,6 +39,7 @@ jobs:
           EXEC=$(az containerapp job start \
             --name ${{ env.PIPELINE_JOB_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ secrets.ACR_LOGIN_SERVER }}/edf-pipeline:latest \
             --env-vars \
               "DATA_SOURCE=${DATA_SOURCE}" \
               "RUN_ID=${RUN_ID}" \
