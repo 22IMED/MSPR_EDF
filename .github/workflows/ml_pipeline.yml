@@ -109,6 +109,7 @@ jobs:
       # ── Step 6 : Entraînement ─────────────────────────────────────────────
       - name: Step 6 — Entraînement modèles
         env:
+          DATA_SOURCE: ${{ steps.datasource.outputs.source }}
           MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI || 'http://localhost:5000' }}
           MLFLOW_EXPERIMENT: edf-consumption
         run: python -c "from pipeline.steps import run_train; run_train('${{ env.RUN_ID }}')"
@@ -116,6 +117,7 @@ jobs:
       # ── Step 7 : Validation + vérification R² ────────────────────────────
       - name: Step 7 — Validation
         env:
+          DATA_SOURCE: ${{ steps.datasource.outputs.source }}
           R2_THRESHOLD: "0.85"
           MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI || 'http://localhost:5000' }}
         run: |
@@ -143,6 +145,7 @@ jobs:
       # ── Step 8 : Enregistrement MLflow ────────────────────────────────────
       - name: Step 8 — Enregistrement MLflow Registry
         env:
+          DATA_SOURCE: ${{ steps.datasource.outputs.source }}
           MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI || 'http://localhost:5000' }}
           MAPE_PRODUCTION_THRESHOLD: "5.0"
         run: python -c "from pipeline.steps import run_register_model; run_register_model('${{ env.RUN_ID }}')"
