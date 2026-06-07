@@ -1,0 +1,12 @@
+﻿properties:
+  template:
+    containers:
+      - image: prom/prometheus:latest
+        name: edf-prometheus
+        volumeMounts:
+          - volumeName: prom-config
+            mountPath: /etc/prometheus
+    volumes:
+      - name: prom-config
+        storageType: AzureFile
+        storageName: prometheus-storage
