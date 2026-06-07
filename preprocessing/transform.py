@@ -195,11 +195,26 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     # Lag sur prévision J-1
     df["prevision_j1_lag1"] = df["prevision_j1"].shift(1)
 
+    # Valeurs par défaut pour les features énergétiques manquantes
+    defaults = {
+        "nucleaire": 40_000.0,
+        "eolien": 5_000.0,
+        "solaire": 3_000.0,
+        "hydraulique": 8_000.0,
+        "gaz": 6_000.0,
+        "fioul": 500.0,
+        "taux_co2": 50.0,
+    }
+    for col, default in defaults.items():
+        if col not in df.columns:
+            logger.warning(f"Colonne '{col}' manquante, valeur par défaut : {default}")
+            df[col] = default
+
     # Suppression des lignes avec NaN sur les lags (7 premières lignes)
     before = len(df)
-    df = df.dropna(subset=FEATURE_COLS)
+    existing_features = [c for c in FEATURE_COLS if c in df.columns]
+    df = df.dropna(subset=existing_features)
     logger.debug(f"Lignes supprimées après lags : {before - len(df):,}")
-
     # Vérification que toutes les features sont présentes
     missing = [c for c in FEATURE_COLS if c not in df.columns]
     if missing:
