@@ -45,45 +45,37 @@ jobs:
 
       - name: Deploy Pipeline Job
         run: |
-          if az containerapp job show \
+          az containerapp job delete \
             --name ${{ env.PIPELINE_JOB_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
-            --output none 2>/dev/null; then
-            echo "Job existe, mise à jour image..."
-            az containerapp job update \
-              --name ${{ env.PIPELINE_JOB_NAME }} \
-              --resource-group ${{ env.RESOURCE_GROUP }} \
-              --container-name ${{ env.PIPELINE_JOB_NAME }} \
-              --image ${{ secrets.ACR_LOGIN_SERVER }}/edf-pipeline:${{ github.sha }}
-          else
-            echo "Job inexistant, création..."
-            az containerapp job create \
-              --name ${{ env.PIPELINE_JOB_NAME }} \
-              --resource-group ${{ env.RESOURCE_GROUP }} \
-              --environment ${{ env.CONTAINER_APP_ENV }} \
-              --trigger-type Manual \
-              --replica-timeout 3600 \
-              --replica-retry-limit 1 \
-              --replica-completion-count 1 \
-              --parallelism 1 \
-              --image ${{ secrets.ACR_LOGIN_SERVER }}/edf-pipeline:${{ github.sha }} \
-              --cpu 2 --memory 4Gi \
-              --min-executions 0 --max-executions 1 \
-              --registry-server ${{ secrets.ACR_LOGIN_SERVER }} \
-              --registry-username ${{ secrets.ACR_USERNAME }} \
-              --registry-password ${{ secrets.ACR_PASSWORD }} \
-              --env-vars \
-                "MLFLOW_TRACKING_URI=http://${{ env.MLFLOW_APP_NAME }}" \
-                "MLFLOW_EXPERIMENT=edf-consumption" \
-                "SNOWFLAKE_ACCOUNT=${{ secrets.SNOWFLAKE_ACCOUNT }}" \
-                "SNOWFLAKE_USER=${{ secrets.SNOWFLAKE_USER }}" \
-                "SNOWFLAKE_PASSWORD=${{ secrets.SNOWFLAKE_PASSWORD }}" \
-                "SNOWFLAKE_DATABASE=${{ secrets.SNOWFLAKE_DATABASE }}" \
-                "SNOWFLAKE_SCHEMA=${{ secrets.SNOWFLAKE_SCHEMA }}" \
-                "SNOWFLAKE_WAREHOUSE=${{ secrets.SNOWFLAKE_WAREHOUSE }}" \
-                "AZURE_STORAGE_ACCOUNT=${{ secrets.AZURE_STORAGE_ACCOUNT }}" \
-                "AZURE_STORAGE_KEY=${{ secrets.AZURE_STORAGE_KEY }}"
-          fi
+            --yes 2>/dev/null || true
+
+          az containerapp job create \
+            --name ${{ env.PIPELINE_JOB_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --environment ${{ env.CONTAINER_APP_ENV }} \
+            --trigger-type Manual \
+            --replica-timeout 3600 \
+            --replica-retry-limit 1 \
+            --replica-completion-count 1 \
+            --parallelism 1 \
+            --image ${{ secrets.ACR_LOGIN_SERVER }}/edf-pipeline:${{ github.sha }} \
+            --cpu 2 --memory 4Gi \
+            --min-executions 0 --max-executions 1 \
+            --registry-server ${{ secrets.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --env-vars \
+              "MLFLOW_TRACKING_URI=http://${{ env.MLFLOW_APP_NAME }}" \
+              "MLFLOW_EXPERIMENT=edf-consumption" \
+              "SNOWFLAKE_ACCOUNT=${{ secrets.SNOWFLAKE_ACCOUNT }}" \
+              "SNOWFLAKE_USER=${{ secrets.SNOWFLAKE_USER }}" \
+              "SNOWFLAKE_PASSWORD=${{ secrets.SNOWFLAKE_PASSWORD }}" \
+              "SNOWFLAKE_DATABASE=${{ secrets.SNOWFLAKE_DATABASE }}" \
+              "SNOWFLAKE_SCHEMA=${{ secrets.SNOWFLAKE_SCHEMA }}" \
+              "SNOWFLAKE_WAREHOUSE=${{ secrets.SNOWFLAKE_WAREHOUSE }}" \
+              "AZURE_STORAGE_ACCOUNT=${{ secrets.AZURE_STORAGE_ACCOUNT }}" \
+              "AZURE_STORAGE_KEY=${{ secrets.AZURE_STORAGE_KEY }}"
   deploy-mlflow:
     name: Deploy MLflow Server
     runs-on: ubuntu-latest

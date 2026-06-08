@@ -25,43 +25,57 @@ class SnowflakeUnavailableError(Exception):
 
 
 def _get_connection():
-    """
-    Retourne une connexion Snowflake.
-
-    Raises
-    ------
-    SnowflakeUnavailableError
-        Si les variables d'environnement sont manquantes ou la connexion échoue.
-    """
-    if not all([_SF_ACCOUNT, _SF_USER, _SF_PASSWORD]):
+    if not all([_SF_ACCOUNT, _SF_USER]):
         raise SnowflakeUnavailableError(
-            "Variables Snowflake manquantes : SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_PASSWORD."
+            "Variables Snowflake manquantes : SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER."
         )
     try:
         import snowflake.connector
 
-        conn = snowflake.connector.connect(
+        connect_kwargs = dict(
             account=_SF_ACCOUNT,
             user=_SF_USER,
-            password=_SF_PASSWORD,
             database=_SF_DATABASE,
             schema=_SF_SCHEMA,
             warehouse=_SF_WAREHOUSE,
-            role="ACCOUNTADMIN",
-            authenticator="snowflake",
+            role=os.getenv("SNOWFLAKE_ROLE", "ACCOUNTADMIN"),
             login_timeout=30,
             network_timeout=60,
             insecure_mode=True,
             ocsp_fail_open=True,
             client_session_keep_alive=True,
         )
+
+        private_key_str = os.getenv("SNOWFLAKE_PRIVATE_KEY", "")
+        if private_key_str:
+            from cryptography.hazmat.backends import default_backend
+            from cryptography.hazmat.primitives import serialization
+
+            private_key = serialization.load_pem_private_key(
+                private_key_str.encode(),
+                password=None,
+                backend=default_backend(),
+            )
+            connect_kwargs["private_key"] = private_key
+            logger.info("Authentification Snowflake via clé privée.")
+        else:
+            if not _SF_PASSWORD:
+                raise SnowflakeUnavailableError(
+                    "SNOWFLAKE_PASSWORD ou SNOWFLAKE_PRIVATE_KEY requis."
+                )
+            connect_kwargs["password"] = _SF_PASSWORD
+            connect_kwargs["authenticator"] = "snowflake"
+            logger.info("Authentification Snowflake via mot de passe.")
+
+        conn = snowflake.connector.connect(**connect_kwargs)
         logger.info(
             f"Connexion Snowflake établie : {_SF_ACCOUNT}/{_SF_DATABASE}.{_SF_SCHEMA}"
         )
         return conn
+
     except ImportError:
         raise SnowflakeUnavailableError(
-            "snowflake-connector-python non installé. pip install snowflake-connector-python"
+            "snowflake-connector-python non installé."
         )
     except Exception as exc:
         raise SnowflakeUnavailableError(f"Connexion Snowflake échouée : {exc}") from exc
