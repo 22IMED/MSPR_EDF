@@ -267,6 +267,10 @@ def run_train(run_id: str | None = None) -> None:
     from sklearn.metrics import r2_score
 
     mlflow.set_tracking_uri(_MLFLOW_URI)
+    try:
+        mlflow.create_experiment(_MLFLOW_EXPERIMENT)
+    except Exception:
+        pass
     mlflow.set_experiment(_MLFLOW_EXPERIMENT)
 
     t0 = time.time()

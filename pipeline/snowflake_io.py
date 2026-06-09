@@ -74,9 +74,7 @@ def _get_connection():
         return conn
 
     except ImportError:
-        raise SnowflakeUnavailableError(
-            "snowflake-connector-python non installé."
-        )
+        raise SnowflakeUnavailableError("snowflake-connector-python non installé.")
     except Exception as exc:
         raise SnowflakeUnavailableError(f"Connexion Snowflake échouée : {exc}") from exc
 

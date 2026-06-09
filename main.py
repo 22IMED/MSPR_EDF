@@ -17,6 +17,7 @@ from collections import defaultdict
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Optional
+from datetime import timedelta
 
 import joblib
 import numpy as np
@@ -423,3 +424,77 @@ async def prometheus_metrics():
         lines.append(f'edf_latency_ms_avg{{model="{model_name}"}} {avg_lat:.2f}')
 
     return "\n".join(lines) + "\n"
+
+
+class ForecastRequest(BaseModel):
+    start_date: str = Field(..., description="Date début YYYY-MM-DD")
+    end_date: str = Field(..., description="Date fin YYYY-MM-DD")
+    model_name: Optional[str] = Field(None, description="Nom du modèle")
+
+    @field_validator("start_date", "end_date")
+    @classmethod
+    def validate_date(cls, v: str) -> str:
+        try:
+            datetime.strptime(v, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError("Format YYYY-MM-DD requis.")
+        return v
+
+
+class ForecastPoint(BaseModel):
+    date: str
+    prediction_mw: float
+
+
+class ForecastResponse(BaseModel):
+    start_date: str
+    end_date: str
+    model_name: str
+    predictions: list[ForecastPoint]
+    count: int
+    r2_score: float
+    mape_percent: float
+
+
+@app.post("/forecast", response_model=ForecastResponse)
+async def forecast(request: ForecastRequest):
+    """Prédictions sur une plage de dates."""
+    start = datetime.strptime(request.start_date, "%Y-%m-%d").date()
+    end = datetime.strptime(request.end_date, "%Y-%m-%d").date()
+
+    if end < start:
+        raise HTTPException(status_code=400, detail="end_date doit être >= start_date.")
+    if (end - start).days > 365:
+        raise HTTPException(
+            status_code=400, detail="La plage ne peut pas dépasser 365 jours."
+        )
+
+    model_name = request.model_name or _DEFAULT_MODEL
+    try:
+        pipeline = _load_model(model_name)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    predictions = []
+    current = start
+    while current <= end:
+        features = _build_features(current, None, None, None)
+        pred = float(pipeline.predict(features)[0])
+        predictions.append(
+            ForecastPoint(
+                date=current.strftime("%Y-%m-%d"),
+                prediction_mw=round(pred, 2),
+            )
+        )
+        current += timedelta(days=1)
+
+    metrics = _load_metrics(model_name)
+    return ForecastResponse(
+        start_date=request.start_date,
+        end_date=request.end_date,
+        model_name=model_name,
+        predictions=predictions,
+        count=len(predictions),
+        r2_score=metrics.get("r2_score", 0.0),
+        mape_percent=metrics.get("mape_percent", 0.0),
+    )
