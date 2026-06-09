@@ -16,6 +16,16 @@ def main():
     run_id = os.getenv("RUN_ID", str(uuid.uuid4())[:8])
     logger.info(f"=== PIPELINE START — run_id={run_id} ===")
 
+    # Setup MLflow experiment
+    import mlflow
+    mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+    mlflow.set_tracking_uri(mlflow_uri)
+    try:
+        mlflow.create_experiment("edf-consumption")
+        logger.info("Expérience MLflow 'edf-consumption' créée.")
+    except Exception:
+        logger.info("Expérience MLflow 'edf-consumption' déjà existante.")
+
     from pipeline.steps import (
         run_extract,
         run_clean,
