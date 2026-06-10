@@ -529,7 +529,6 @@ def run_register_model(run_id: str | None = None) -> None:
 
         # Transition Production si MAPE OK
         if meta["mape_test"] <= _MAPE_PROD_THRESHOLD:
-            # Archive anciennes versions Production
             try:
                 for mv_old in client.get_latest_versions(
                     registry_name, stages=["Production"]
@@ -589,6 +588,33 @@ def run_register_model(run_id: str | None = None) -> None:
     alias = _MODELS_DIR / "random_forest_latest.metrics.json"
     with open(alias, "w") as f:
         json.dump(metrics_json, f, indent=2)
+
+    # ── Upload vers Azure Blob container "models" pour l'API ──
+    _azure_account = os.getenv("AZURE_STORAGE_ACCOUNT")
+    _azure_key = os.getenv("AZURE_STORAGE_KEY")
+    if _azure_account and _azure_key:
+        try:
+            from azure.storage.blob import BlobServiceClient
+
+            svc = BlobServiceClient(
+                account_url=f"https://{_azure_account}.blob.core.windows.net",
+                credential=_azure_key,
+            )
+            container = svc.get_container_client("models")
+            files_to_upload = [
+                _MODELS_DIR / f"{best_model_name}.joblib",
+                _MODELS_DIR / f"{best_model_name}_latest.metrics.json",
+                _MODELS_DIR / "random_forest_latest.metrics.json",
+            ]
+            for fp in files_to_upload:
+                if fp.exists():
+                    with open(fp, "rb") as fh:
+                        container.upload_blob(fp.name, fh, overwrite=True)
+                    logger.info(f"Uploadé vers blob models : {fp.name}")
+        except Exception as exc:
+            logger.warning(f"Upload blob models échoué : {exc}")
+    else:
+        logger.warning("AZURE_STORAGE_ACCOUNT/KEY non définis — upload blob ignoré.")
 
 
 # ─── Step 9 : Prédictions ────────────────────────────────────────────────────
