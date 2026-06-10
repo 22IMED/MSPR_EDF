@@ -17,6 +17,7 @@ env:
   RESOURCE_GROUP: mspr3-edf
   PIPELINE_JOB_NAME: edf-pipeline-job
   API_APP_NAME: edf-api
+  MLFLOW_URL: https://edf-mlflow.orangebeach-b5cf8765.francecentral.azurecontainerapps.io
 
 jobs:
   trigger:
@@ -29,6 +30,13 @@ jobs:
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Créer expérience MLflow
+        run: |
+          curl -s -X POST \
+            "${{ env.MLFLOW_URL }}/api/2.0/mlflow/experiments/create" \
+            -H "Content-Type: application/json" \
+            -d '{"name": "edf-consumption"}' || true
 
       - name: Start Container App Job
         id: start

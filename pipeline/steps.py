@@ -268,10 +268,12 @@ def run_train(run_id: str | None = None) -> None:
 
     mlflow.set_tracking_uri(_MLFLOW_URI)
     try:
-        mlflow.create_experiment(_MLFLOW_EXPERIMENT)
-    except Exception:
-        pass
-    mlflow.set_experiment(_MLFLOW_EXPERIMENT)
+        experiment_id = mlflow.create_experiment(_MLFLOW_EXPERIMENT)
+        logger.info(f"Expérience MLflow créée : {experiment_id}")
+    except Exception as e:
+        logger.warning(f"create_experiment : {e}")
+    experiment = mlflow.set_experiment(_MLFLOW_EXPERIMENT)
+    logger.info(f"Expérience MLflow active : {experiment.experiment_id}")
 
     t0 = time.time()
     trained = train_all(X_train, y_train)
