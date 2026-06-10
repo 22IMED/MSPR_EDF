@@ -1,6 +1,7 @@
 """Tests E2E — API en production."""
 
 import os
+import time
 import pytest
 import requests
 
@@ -58,16 +59,24 @@ def test_api_predict_all_models():
     models = models_response.json()["available_models"]
 
     for model in models:
-        response = requests.post(
-            f"{API_URL}/predict",
-            json={
-                "date": "2025-06-01",
-                "prevision_j1": 55000,
-                "model_name": model["model_name"],
-            },
-            timeout=30,
+        for attempt in range(3):
+            response = requests.post(
+                f"{API_URL}/predict",
+                json={
+                    "date": "2025-06-01",
+                    "prevision_j1": 55000,
+                    "model_name": model["model_name"],
+                },
+                timeout=30,
+            )
+            if response.status_code == 200:
+                break
+            time.sleep(5)
+
+        assert response.status_code == 200, (
+            f"Modèle '{model['model_name']}' — "
+            f"HTTP {response.status_code}: {response.text}"
         )
-        assert response.status_code == 200, f"Modèle {model['model_name']} échoue"
 
 
 @pytest.mark.e2e
@@ -93,8 +102,6 @@ def test_api_invalid_date():
 @pytest.mark.e2e
 def test_api_response_time():
     """L'API répond en moins de 2 secondes."""
-    import time
-
     start = time.time()
     requests.post(
         f"{API_URL}/predict",

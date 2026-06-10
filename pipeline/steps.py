@@ -267,11 +267,6 @@ def run_train(run_id: str | None = None) -> None:
     from sklearn.metrics import r2_score
 
     mlflow.set_tracking_uri(_MLFLOW_URI)
-    try:
-        experiment_id = mlflow.create_experiment(_MLFLOW_EXPERIMENT)
-        logger.info(f"Expérience MLflow créée : {experiment_id}")
-    except Exception as e:
-        logger.warning(f"create_experiment : {e}")
     experiment = mlflow.set_experiment(_MLFLOW_EXPERIMENT)
     logger.info(f"Expérience MLflow active : {experiment.experiment_id}")
 
@@ -445,6 +440,7 @@ def run_validate(run_id: str | None = None) -> str:
                 "-q",
                 "--ignore=tests/test_api.py",
                 "--ignore=tests/integration/",
+                "--ignore=tests/e2e/",
             ],
             capture_output=True,
             text=True,

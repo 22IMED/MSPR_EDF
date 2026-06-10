@@ -9,6 +9,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY models.py .
+COPY main.py .
 COPY preprocessing/ ./preprocessing/
 COPY pipeline/ ./pipeline/
 COPY tests/ ./tests/

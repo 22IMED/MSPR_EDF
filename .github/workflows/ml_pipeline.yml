@@ -17,7 +17,6 @@ env:
   RESOURCE_GROUP: mspr3-edf
   PIPELINE_JOB_NAME: edf-pipeline-job
   API_APP_NAME: edf-api
-  MLFLOW_URL: https://edf-mlflow.orangebeach-b5cf8765.francecentral.azurecontainerapps.io
 
 jobs:
   trigger:
@@ -31,23 +30,16 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Créer expérience MLflow
-        run: |
-          curl -s -X POST \
-            "${{ env.MLFLOW_URL }}/api/2.0/mlflow/experiments/create" \
-            -H "Content-Type: application/json" \
-            -d '{"name": "edf-consumption"}' || true
-
       - name: Start Container App Job
         id: start
         run: |
           DATA_SOURCE="${{ inputs.data_source || 'snowflake' }}"
           RUN_ID=$(python3 -c "import uuid; print(str(uuid.uuid4())[:8])")
 
+          # --image removed: image is defined in the job definition, not at start time
           EXEC=$(az containerapp job start \
             --name ${{ env.PIPELINE_JOB_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image ${{ secrets.ACR_LOGIN_SERVER }}/edf-pipeline:latest \
             --env-vars \
               "DATA_SOURCE=${DATA_SOURCE}" \
               "RUN_ID=${RUN_ID}" \
@@ -78,23 +70,30 @@ jobs:
               --resource-group ${{ env.RESOURCE_GROUP }} \
               --job-execution-name "${EXEC}" \
               --query "properties.status" -o tsv)
-            echo "[$i/60] Statut : ${STATUS}"
+            echo "[$i/60] $(date -u '+%H:%M:%S') — Statut : ${STATUS}"
             if [[ "${STATUS}" == "Succeeded" ]]; then
-              echo "Pipeline terminé avec succès."
+              echo "✅ Pipeline terminé avec succès."
               exit 0
             elif [[ "${STATUS}" == "Failed" ]]; then
-              echo "Pipeline échoué."
+              echo "❌ Pipeline échoué. Récupération des logs..."
+              az containerapp job execution logs show \
+                --name ${{ env.PIPELINE_JOB_NAME }} \
+                --resource-group ${{ env.RESOURCE_GROUP }} \
+                --job-execution-name "${EXEC}" \
+                --container ${{ env.PIPELINE_JOB_NAME }} || true
               exit 1
             fi
             sleep 60
           done
-          echo "Timeout 60 min dépassé."
+          echo "⏰ Timeout 60 min dépassé."
           exit 1
 
   restart-api:
     name: Restart API
     runs-on: ubuntu-latest
     needs: wait
+    # Only restart if pipeline actually succeeded — avoids serving a broken model
+    if: needs.wait.result == 'success'
     steps:
       - name: Azure Login
         uses: azure/login@v2
@@ -120,5 +119,6 @@ jobs:
     steps:
       - name: Summary
         run: |
-          echo "Pipeline : ${{ needs.wait.result }}"
-          echo "Restart API : ${{ needs.restart-api.result }}"
+          echo "### Pipeline Result" >> $GITHUB_STEP_SUMMARY
+          echo "- Entraînement : ${{ needs.wait.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Restart API  : ${{ needs.restart-api.result }}" >> $GITHUB_STEP_SUMMARY
