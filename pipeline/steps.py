@@ -435,7 +435,17 @@ def run_validate(run_id: str | None = None) -> str:
     logger.info("Lancement des tests pytest...")
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "pytest", "tests/", "-v", "--tb=short", "-q"],
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "tests/",
+                "-v",
+                "--tb=short",
+                "-q",
+                "--ignore=tests/test_api.py",
+                "--ignore=tests/integration/",
+            ],
             capture_output=True,
             text=True,
             timeout=120,

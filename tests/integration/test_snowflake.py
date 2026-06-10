@@ -2,6 +2,7 @@
 
 import pytest
 
+
 @pytest.mark.integration
 def test_snowflake_connection():
     """Connexion Snowflake établie avec succès."""
