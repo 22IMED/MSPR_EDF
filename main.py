@@ -130,84 +130,79 @@ def _load_metrics(model_name: str) -> dict:
 
 def _build_features(
     target_date: date,
-    prevision_j1: Optional[float],
-    lag_1: Optional[float],
-    lag_7: Optional[float],
-    nucleaire: Optional[float] = None,
+    heure: float = 12.0,
+    lag_1h: Optional[float] = None,
+    lag_24h: Optional[float] = None,
+    lag_48h: Optional[float] = None,
+    lag_j7: Optional[float] = None,
+    roll_24h_mean: Optional[float] = None,
+    roll_24h_std: Optional[float] = None,
+    roll_7j_mean: Optional[float] = None,
+    delta_j1: Optional[float] = None,
+    charbon: Optional[float] = None,
+    fioul: Optional[float] = None,
+    gaz: Optional[float] = None,
     eolien: Optional[float] = None,
     solaire: Optional[float] = None,
     hydraulique: Optional[float] = None,
-    gaz: Optional[float] = None,
-    fioul: Optional[float] = None,
-    taux_co2: Optional[float] = None,
+    nucleaire: Optional[float] = None,
+    ech_physiques: Optional[float] = None,
 ) -> np.ndarray:
-    """
-    Construit le vecteur de features pour une date donnée.
+    """Construit le vecteur de 27 features pour le modèle MLP."""
 
-    Parameters
-    ----------
-    target_date : date
-    prevision_j1 : float | None
-    lag_1 : float | None
-    lag_7 : float | None
-    nucleaire : float | None
-    eolien : float | None
-    solaire : float | None
-    hydraulique : float | None
-    gaz : float | None
-    fioul : float | None
-    taux_co2 : float | None
-
-    Returns
-    -------
-    np.ndarray shape (1, len(FEATURE_COLS))
-    """
-    dt = datetime.combine(target_date, datetime.min.time())
-    month = dt.month
-    dow = dt.weekday()
-    day_of_year = dt.timetuple().tm_yday
-
-    date_str = target_date.strftime("%Y-%m-%d")
-    is_holiday = 1 if date_str in JOURS_FERIES_FR else 0
+    month = target_date.month
+    dow = target_date.weekday()
+    day_of_year = target_date.timetuple().tm_yday
     is_weekend = 1 if dow >= 5 else 0
-    saison = SAISON_MAP.get(month, 0)
+    is_heure_pointe = 1 if int(heure) in [8, 9, 10, 11, 18, 19, 20] else 0
 
-    month_sin = math.sin(2 * math.pi * month / 12)
-    month_cos = math.cos(2 * math.pi * month / 12)
-    dow_sin = math.sin(2 * math.pi * dow / 7)
-    dow_cos = math.cos(2 * math.pi * dow / 7)
-
-    # Valeurs par défaut
-    pj1 = prevision_j1 if prevision_j1 is not None else 55_000.0
-    l1 = lag_1 if lag_1 is not None else 55_000.0
-    l7 = lag_7 if lag_7 is not None else 55_000.0
-    pj1_lag1 = pj1
+    def saison(m):
+        if m in [12, 1, 2]: return 1
+        if m in [3, 4, 5]:  return 2
+        if m in [6, 7, 8]:  return 3
+        return 4
 
     feature_map = {
-        "prevision_j1": pj1,
-        "day_of_week": float(dow),
-        "month": float(month),
-        "day_of_year": float(day_of_year),
-        "is_weekend": float(is_weekend),
-        "is_holiday": float(is_holiday),
-        "saison": float(saison),
-        "month_sin": month_sin,
-        "month_cos": month_cos,
-        "dow_sin": dow_sin,
-        "dow_cos": dow_cos,
-        "lag_1": l1,
-        "lag_7": l7,
-        "prevision_j1_lag1": pj1_lag1,
-        "nucleaire": nucleaire if nucleaire is not None else 40_000.0,
-        "eolien": eolien if eolien is not None else 5_000.0,
-        "solaire": solaire if solaire is not None else 3_000.0,
-        "hydraulique": hydraulique if hydraulique is not None else 8_000.0,
-        "gaz": gaz if gaz is not None else 6_000.0,
-        "fioul": fioul if fioul is not None else 500.0,
-        "taux_co2": taux_co2 if taux_co2 is not None else 50.0,
+        "Mois_sin":        math.sin(2 * math.pi * month / 12),
+        "Mois_cos":        math.cos(2 * math.pi * month / 12),
+        "Jour_sin":        math.sin(2 * math.pi * dow / 7),
+        "Jour_cos":        math.cos(2 * math.pi * dow / 7),
+        "Heure_sin":       math.sin(2 * math.pi * heure / 24),
+        "Heure_cos":       math.cos(2 * math.pi * heure / 24),
+        "JourAnnee_sin":   math.sin(2 * math.pi * day_of_year / 365),
+        "JourAnnee_cos":   math.cos(2 * math.pi * day_of_year / 365),
+        "Est_Weekend":     float(is_weekend),
+        "Est_Heure_Pointe": float(is_heure_pointe),
+        "Saison":          float(saison(month)),
+        "Lag_1h":          lag_1h if lag_1h is not None else 55_000.0,
+        "Lag_24h":         lag_24h if lag_24h is not None else 55_000.0,
+        "Lag_48h":         lag_48h if lag_48h is not None else 55_000.0,
+        "Lag_J7":          lag_j7 if lag_j7 is not None else 55_000.0,
+        "Roll_24h_mean":   roll_24h_mean if roll_24h_mean is not None else 55_000.0,
+        "Roll_24h_std":    roll_24h_std if roll_24h_std is not None else 2_000.0,
+        "Roll_7j_mean":    roll_7j_mean if roll_7j_mean is not None else 55_000.0,
+        "Delta_J1":        delta_j1 if delta_j1 is not None else 0.0,
+        "Charbon":         charbon if charbon is not None else 500.0,
+        "Fioul":           fioul if fioul is not None else 500.0,
+        "Gaz":             gaz if gaz is not None else 6_000.0,
+        "Eolien":          eolien if eolien is not None else 5_000.0,
+        "Solaire":         solaire if solaire is not None else 3_000.0,
+        "Hydraulique":     hydraulique if hydraulique is not None else 8_000.0,
+        "Nucléaire":       nucleaire if nucleaire is not None else 40_000.0,
+        "Ech. physiques":  ech_physiques if ech_physiques is not None else -2_000.0,
     }
 
-    return np.array([[feature_map[col] for col in FEATURE_COLS]])
+    FEATURES = [
+        "Mois_sin", "Mois_cos", "Jour_sin", "Jour_cos",
+        "Heure_sin", "Heure_cos", "JourAnnee_sin", "JourAnnee_cos",
+        "Est_Weekend", "Est_Heure_Pointe", "Saison",
+        "Lag_1h", "Lag_24h", "Lag_48h", "Lag_J7",
+        "Roll_24h_mean", "Roll_24h_std", "Roll_7j_mean", "Delta_J1",
+        "Charbon", "Fioul", "Gaz", "Eolien",
+        "Solaire", "Hydraulique", "Nucléaire", "Ech. physiques",
+    ]
+
+    return np.array([[feature_map[col] for col in FEATURES]])
 
 
 # ─── Schémas Pydantic ────────────────────────────────────────────────────────
@@ -215,22 +210,23 @@ def _build_features(
 
 class PredictRequest(BaseModel):
     date: str = Field(..., description="Date de prédiction au format YYYY-MM-DD")
-    prevision_j1: Optional[float] = Field(
-        None, description="Prévision RTE J-1 (MW)", ge=0
-    )
-    lag_1: Optional[float] = Field(None, description="Consommation J-1 (MW)", ge=0)
-    lag_7: Optional[float] = Field(None, description="Consommation J-7 (MW)", ge=0)
-    nucleaire: Optional[float] = Field(
-        None, description="Production nucléaire (MW)", ge=0
-    )
+    heure: Optional[float] = Field(12.0, description="Heure de la journée (0-23)", ge=0, le=23)
+    lag_1h: Optional[float] = Field(None, description="Consommation il y a 1h (MW)", ge=0)
+    lag_24h: Optional[float] = Field(None, description="Consommation il y a 24h (MW)", ge=0)
+    lag_48h: Optional[float] = Field(None, description="Consommation il y a 48h (MW)", ge=0)
+    lag_j7: Optional[float] = Field(None, description="Consommation il y a 7 jours (MW)", ge=0)
+    roll_24h_mean: Optional[float] = Field(None, description="Moyenne rolling 24h (MW)", ge=0)
+    roll_24h_std: Optional[float] = Field(None, description="Écart-type rolling 24h (MW)", ge=0)
+    roll_7j_mean: Optional[float] = Field(None, description="Moyenne rolling 7 jours (MW)", ge=0)
+    delta_j1: Optional[float] = Field(None, description="Delta consommation J-1 (MW)")
+    charbon: Optional[float] = Field(None, description="Production charbon (MW)")
+    fioul: Optional[float] = Field(None, description="Production fioul (MW)", ge=0)
+    gaz: Optional[float] = Field(None, description="Production gaz (MW)", ge=0)
     eolien: Optional[float] = Field(None, description="Production éolienne (MW)", ge=0)
     solaire: Optional[float] = Field(None, description="Production solaire (MW)", ge=0)
-    hydraulique: Optional[float] = Field(
-        None, description="Production hydraulique (MW)", ge=0
-    )
-    gaz: Optional[float] = Field(None, description="Production gaz (MW)", ge=0)
-    fioul: Optional[float] = Field(None, description="Production fioul (MW)", ge=0)
-    taux_co2: Optional[float] = Field(None, description="Taux de CO2 (g/kWh)", ge=0)
+    hydraulique: Optional[float] = Field(None, description="Production hydraulique (MW)", ge=0)
+    nucleaire: Optional[float] = Field(None, description="Production nucléaire (MW)", ge=0)
+    ech_physiques: Optional[float] = Field(None, description="Échanges physiques (MW)")
     model_name: Optional[str] = Field(None, description="Nom du modèle à utiliser")
 
     @field_validator("date")
@@ -478,7 +474,7 @@ async def forecast(request: ForecastRequest):
     predictions = []
     current = start
     while current <= end:
-        features = _build_features(current, None, None, None)
+        features = _build_features(current)
         pred = float(pipeline.predict(features)[0])
         predictions.append(
             ForecastPoint(
